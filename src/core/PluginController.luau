@@ -1,9 +1,11 @@
 --!strict
 
-local ExportService = require(script.Parent.Parent.export.ExportService)
-local ImportService = require(script.Parent.Parent.import.ImportService)
-local MainWindow = require(script.Parent.Parent.ui.MainWindow)
-local Settings = require(script.Parent.Parent.config.Settings)
+local root = script.Parent.Parent
+
+local ExportService = require(root:WaitForChild("export"):WaitForChild("ExportService"))
+local ImportService = require(root:WaitForChild("import"):WaitForChild("ImportService"))
+local MainWindow = require(root:WaitForChild("ui"):WaitForChild("MainWindow"))
+local Settings = require(root:WaitForChild("config"):WaitForChild("Settings"))
 
 local PluginController = {}
 PluginController.__index = PluginController

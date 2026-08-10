@@ -1,0 +1,21 @@
+{
+  "name": "Refab",
+  "tree": {
+    "$path": "src/main.plugin.luau",
+    "core": {
+      "$path": "src/core"
+    },
+    "export": {
+      "$path": "src/export"
+    },
+    "import": {
+      "$path": "src/import"
+    },
+    "ui": {
+      "$path": "src/ui"
+    },
+    "config": {
+      "$path": "src/config"
+    }
+  }
+}

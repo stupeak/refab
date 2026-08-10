@@ -12,6 +12,9 @@ The intended split is:
 
 ```text
 default.project.json
+plugin.project.json
+dev/
+  test.project.json
 src/
   main.plugin.luau
   config/
@@ -37,14 +40,47 @@ src/
 
 ## Build
 
-Install the pinned toolchain, then build:
+Refab is a Studio plugin, not a place. The plugin build project is
+`plugin.project.json`, whose root is `src/main.plugin.luau`. Rojo 7.7.0 treats
+`.plugin.luau` scripts as plugin-run-context scripts.
+
+Install the pinned toolchain, then build the local plugin:
 
 ```powershell
 rokit install
-rojo build -o Refab.rbxm
+rojo build plugin.project.json --plugin Refab.rbxm
 ```
 
-Install `Refab.rbxm` as a local Roblox Studio plugin.
+Rojo writes `Refab.rbxm` into Roblox Studio's local plugins folder.
+
+For a plain artifact in this repository instead, run:
+
+```powershell
+rojo build plugin.project.json -o Refab.rbxm
+```
+
+Refab does not need `rojo serve` for V1 testing. Build the plugin, open Studio,
+then enable Refab from the Plugins tab.
+
+On Windows, the local plugin folder is usually:
+
+```text
+%LOCALAPPDATA%\Roblox\Plugins
+```
+
+Studio scans local plugins when Studio starts. After building or copying a
+local `.rbxm` plugin, fully restart Roblox Studio before testing it.
+
+If you specifically want a blank test place through Rojo Studio sync, use
+`default.project.json` or `dev/test.project.json`:
+
+```powershell
+rojo serve default.project.json
+```
+
+Do not serve `plugin.project.json`. It is intentionally a model/plugin artifact,
+not a place, so the Rojo Studio plugin will reject it with "Cannot sync a model
+as a place."
 
 ## Export Workflow
 
