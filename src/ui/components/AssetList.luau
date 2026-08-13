@@ -12,19 +12,20 @@ export type Handle = {
 
 local function statusColor(status: AssetDefinition.AssetStatus): Color3
 	if status == "Error" then
-		return Color3.fromRGB(227, 88, 88)
+		return Color3.fromRGB(196, 43, 28)
 	elseif status == "Warning" then
-		return Color3.fromRGB(219, 170, 65)
+		return Color3.fromRGB(150, 98, 0)
 	end
-	return Color3.fromRGB(155, 166, 179)
+	return Color3.fromRGB(90, 90, 90)
 end
 
 function AssetList.create(): Handle
 	local root = Instance.new("ScrollingFrame")
 	root.Name = "AssetList"
 	root.Size = UDim2.new(1, 0, 1, -96)
-	root.BackgroundColor3 = Color3.fromRGB(31, 33, 38)
-	root.BorderSizePixel = 0
+	root.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	root.BorderColor3 = Color3.fromRGB(205, 205, 205)
+	root.BorderSizePixel = 1
 	root.ScrollBarThickness = 8
 	root.CanvasSize = UDim2.new()
 	root.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -55,7 +56,7 @@ function AssetList.create(): Handle
 		label.Size = UDim2.new(1, -16, 0, 44)
 		label.BackgroundTransparency = 1
 		label.Text = message
-		label.TextColor3 = Color3.fromRGB(178, 185, 194)
+		label.TextColor3 = Color3.fromRGB(90, 90, 90)
 		label.TextSize = 15
 		label.TextWrapped = true
 		label.Font = Enum.Font.SourceSans
@@ -67,8 +68,9 @@ function AssetList.create(): Handle
 		row.Name = "AssetRow"
 		row.LayoutOrder = index
 		row.Size = UDim2.new(1, -16, 0, if asset.message then 62 else 44)
-		row.BackgroundColor3 = Color3.fromRGB(38, 41, 48)
-		row.BorderSizePixel = 0
+		row.BackgroundColor3 = Color3.fromRGB(248, 248, 248)
+		row.BorderColor3 = Color3.fromRGB(220, 220, 220)
+		row.BorderSizePixel = 1
 		row.Parent = root
 
 		local corner = Instance.new("UICorner")
@@ -89,7 +91,7 @@ function AssetList.create(): Handle
 		title.BackgroundTransparency = 1
 		title.Text = asset.name
 		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.TextColor3 = Color3.fromRGB(244, 246, 248)
+		title.TextColor3 = Color3.fromRGB(35, 35, 35)
 		title.TextSize = 16
 		title.Font = Enum.Font.SourceSansSemibold
 		title.TextTruncate = Enum.TextTruncate.AtEnd

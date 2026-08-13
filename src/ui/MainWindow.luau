@@ -42,7 +42,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.Size = UDim2.fromScale(1, 1)
-	root.BackgroundColor3 = Color3.fromRGB(24, 26, 31)
+	root.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
 	root.BorderSizePixel = 0
 	root.Parent = widget
 
@@ -59,7 +59,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 	title.BackgroundTransparency = 1
 	title.Text = Settings.PluginName
 	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.TextColor3 = Color3.fromRGB(246, 247, 249)
+	title.TextColor3 = Color3.fromRGB(35, 35, 35)
 	title.TextSize = 22
 	title.Font = Enum.Font.SourceSansBold
 	title.Parent = root
@@ -100,7 +100,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 	status.TextXAlignment = Enum.TextXAlignment.Left
 	status.TextYAlignment = Enum.TextYAlignment.Center
 	status.TextWrapped = true
-	status.TextColor3 = Color3.fromRGB(166, 176, 188)
+	status.TextColor3 = Color3.fromRGB(85, 85, 85)
 	status.TextSize = 14
 	status.Font = Enum.Font.SourceSans
 	status.Parent = root
@@ -117,7 +117,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 
 	local function setStatus(message: string, isError: boolean?)
 		status.Text = message
-		status.TextColor3 = if isError then Color3.fromRGB(227, 88, 88) else Color3.fromRGB(166, 176, 188)
+		status.TextColor3 = if isError then Color3.fromRGB(196, 43, 28) else Color3.fromRGB(85, 85, 85)
 	end
 
 	self._exportView = ExportView.create(exportService, setStatus)
@@ -150,8 +150,10 @@ function MainWindow:setMode(mode: "Export" | "Import")
 		self._importView.root.Visible = not showingExport
 	end
 
-	self._exportTab.BackgroundColor3 = if showingExport then Color3.fromRGB(31, 103, 185) else Color3.fromRGB(56, 58, 64)
-	self._importTab.BackgroundColor3 = if showingExport then Color3.fromRGB(56, 58, 64) else Color3.fromRGB(31, 103, 185)
+	self._exportTab.BackgroundColor3 = if showingExport then Color3.fromRGB(0, 120, 215) else Color3.fromRGB(242, 242, 242)
+	self._exportTab.TextColor3 = if showingExport then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(35, 35, 35)
+	self._importTab.BackgroundColor3 = if showingExport then Color3.fromRGB(242, 242, 242) else Color3.fromRGB(0, 120, 215)
+	self._importTab.TextColor3 = if showingExport then Color3.fromRGB(35, 35, 35) else Color3.fromRGB(255, 255, 255)
 end
 
 function MainWindow:setEnabled(enabled: boolean)

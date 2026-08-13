@@ -16,9 +16,9 @@ function Checkbox.create(initialChecked: boolean): CheckboxHandle
 	local root = Instance.new("TextButton")
 	root.Name = "Checkbox"
 	root.Size = UDim2.new(0, 22, 0, 22)
-	root.BackgroundColor3 = Color3.fromRGB(42, 45, 52)
-	root.BorderColor3 = Color3.fromRGB(94, 100, 112)
-	root.TextColor3 = Color3.fromRGB(255, 255, 255)
+	root.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	root.BorderColor3 = Color3.fromRGB(135, 135, 135)
+	root.TextColor3 = Color3.fromRGB(30, 30, 30)
 	root.TextSize = 16
 	root.Font = Enum.Font.SourceSansBold
 	root.AutoButtonColor = true
