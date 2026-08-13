@@ -1,12 +1,22 @@
-# Rojo / Roblox build artifacts
-*.rbxm
-*.rbxmx
-*.rbxl
-*.rbxlx
+# Local Rojo / Roblox build artifacts
+/Refab*.rbxm
+/Refab*.rbxmx
+/Refab*.rbxl
+/Refab*.rbxlx
+/Sample*.rbxl
+/Sample*.rbxlx
+/SampleRoot*.rbxlx
+/SampleNested*.rbxlx
+/Game*.rbxl
+/Game*.rbxlx
+/sample/*.rbxl
+/sample/*.rbxlx
+/sourcemap.json
 
 # Local inspection artifacts
-*.inspect.rbxmx
+/*.inspect.rbxmx
 
 # Tool/cache clutter
 .luau-lsp/
-.vscode/
+.vscode/*
+!.vscode/settings.json

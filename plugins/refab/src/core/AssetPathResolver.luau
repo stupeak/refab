@@ -56,6 +56,22 @@ function AssetPathResolver.instanceToAssetPath(instance: Instance): (boolean, st
 	return true, assetPath, parentPath
 end
 
+function AssetPathResolver.instanceToTargetPath(instance: Instance): (boolean, string?, string?)
+	local root = AssetPathResolver.getSupportedRoot(instance)
+	if not root then
+		return false, nil, "This asset is outside a supported root."
+	end
+
+	local segments = {}
+	local current: Instance? = instance
+	while current and current ~= root.Parent do
+		table.insert(segments, 1, current.Name)
+		current = current.Parent
+	end
+
+	return true, table.concat(segments, "."), nil
+end
+
 function AssetPathResolver.fileNameToAssetPath(fileName: string): string
 	local normalized = fileName:gsub("\\", "/")
 	normalized = normalized:gsub("^/+", "")

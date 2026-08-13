@@ -16,6 +16,8 @@ export type MainWindow = typeof(setmetatable({} :: {
 	_status: TextLabel,
 	_exportTab: TextButton,
 	_importTab: TextButton,
+	_projectRootBox: TextBox,
+	_assetsFolderBox: TextBox,
 }, MainWindow))
 
 local function createTab(text: string): TextButton
@@ -24,15 +26,42 @@ local function createTab(text: string): TextButton
 	return tab
 end
 
-function MainWindow.new(plugin: Plugin, exportService: any, importService: any): MainWindow
+local function createLabel(text: string): TextLabel
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextColor3 = Color3.fromRGB(65, 65, 65)
+	label.TextSize = 13
+	label.Font = Enum.Font.SourceSans
+	return label
+end
+
+local function createTextBox(placeholder: string): TextBox
+	local box = Instance.new("TextBox")
+	box.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	box.BorderColor3 = Color3.fromRGB(190, 190, 190)
+	box.BorderSizePixel = 1
+	box.ClearTextOnFocus = false
+	box.Font = Enum.Font.SourceSans
+	box.PlaceholderText = placeholder
+	box.Text = ""
+	box.TextColor3 = Color3.fromRGB(35, 35, 35)
+	box.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+	box.TextSize = 14
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	return box
+end
+
+function MainWindow.new(plugin: Plugin, exportService: any, importService: any, projectSettings: any): MainWindow
 	local widgetInfo = DockWidgetPluginGuiInfo.new(
 		Enum.InitialDockState.Right,
 		false,
 		false,
 		380,
-		520,
+		620,
 		320,
-		360
+		460
 	)
 
 	local widget = plugin:CreateDockWidgetPluginGuiAsync(Settings.WidgetId, widgetInfo)
@@ -64,9 +93,59 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 	title.Font = Enum.Font.SourceSansBold
 	title.Parent = root
 
+	local projectConfig = projectSettings:get()
+
+	local projectFrame = Instance.new("Frame")
+	projectFrame.Name = "ProjectSettings"
+	projectFrame.Position = UDim2.new(0, 0, 0, 36)
+	projectFrame.Size = UDim2.new(1, 0, 0, 104)
+	projectFrame.BackgroundColor3 = Color3.fromRGB(238, 238, 238)
+	projectFrame.BorderColor3 = Color3.fromRGB(205, 205, 205)
+	projectFrame.BorderSizePixel = 1
+	projectFrame.Parent = root
+
+	local projectPadding = Instance.new("UIPadding")
+	projectPadding.PaddingTop = UDim.new(0, 8)
+	projectPadding.PaddingBottom = UDim.new(0, 8)
+	projectPadding.PaddingLeft = UDim.new(0, 8)
+	projectPadding.PaddingRight = UDim.new(0, 8)
+	projectPadding.Parent = projectFrame
+
+	local projectLabel = createLabel("Project Root")
+	projectLabel.Position = UDim2.new(0, 0, 0, 0)
+	projectLabel.Size = UDim2.new(1, 0, 0, 16)
+	projectLabel.Parent = projectFrame
+
+	local projectRootBox = createTextBox("C:/Roblox Projects/my-game")
+	projectRootBox.Position = UDim2.new(0, 0, 0, 18)
+	projectRootBox.Size = UDim2.new(1, -168, 0, 28)
+	projectRootBox.Text = projectConfig.projectRoot
+	projectRootBox.Parent = projectFrame
+
+	local saveProjectButton = Button.create({ text = "Save", height = 28, accent = true })
+	saveProjectButton.Position = UDim2.new(1, -160, 0, 18)
+	saveProjectButton.Size = UDim2.new(0, 76, 0, 28)
+	saveProjectButton.Parent = projectFrame
+
+	local clearProjectButton = Button.create({ text = "Clear", height = 28 })
+	clearProjectButton.Position = UDim2.new(1, -76, 0, 18)
+	clearProjectButton.Size = UDim2.new(0, 76, 0, 28)
+	clearProjectButton.Parent = projectFrame
+
+	local assetsLabel = createLabel("Assets Folder")
+	assetsLabel.Position = UDim2.new(0, 0, 0, 50)
+	assetsLabel.Size = UDim2.new(1, 0, 0, 16)
+	assetsLabel.Parent = projectFrame
+
+	local assetsFolderBox = createTextBox("assets")
+	assetsFolderBox.Position = UDim2.new(0, 0, 0, 66)
+	assetsFolderBox.Size = UDim2.new(1, 0, 0, 28)
+	assetsFolderBox.Text = projectConfig.assetsFolder
+	assetsFolderBox.Parent = projectFrame
+
 	local tabs = Instance.new("Frame")
 	tabs.Name = "Tabs"
-	tabs.Position = UDim2.new(0, 0, 0, 40)
+	tabs.Position = UDim2.new(0, 0, 0, 152)
 	tabs.Size = UDim2.new(1, 0, 0, 34)
 	tabs.BackgroundTransparency = 1
 	tabs.Parent = root
@@ -85,8 +164,8 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 
 	local content = Instance.new("Frame")
 	content.Name = "Content"
-	content.Position = UDim2.new(0, 0, 0, 86)
-	content.Size = UDim2.new(1, 0, 1, -126)
+	content.Position = UDim2.new(0, 0, 0, 198)
+	content.Size = UDim2.new(1, 0, 1, -238)
 	content.BackgroundTransparency = 1
 	content.Parent = root
 
@@ -113,6 +192,8 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 		_status = status,
 		_exportTab = exportTab,
 		_importTab = importTab,
+		_projectRootBox = projectRootBox,
+		_assetsFolderBox = assetsFolderBox,
 	}, MainWindow)
 
 	local function setStatus(message: string, isError: boolean?)
@@ -125,6 +206,26 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any):
 
 	self._importView = ImportView.create(importService, setStatus)
 	self._importView.root.Parent = content
+
+	saveProjectButton.MouseButton1Click:Connect(function()
+		local saved = projectSettings:save(projectRootBox.Text, assetsFolderBox.Text)
+		projectRootBox.Text = saved.projectRoot
+		assetsFolderBox.Text = saved.assetsFolder
+		setStatus("Saved Refab project root for this place.")
+		if self._exportView then
+			self._exportView.refresh()
+		end
+	end)
+
+	clearProjectButton.MouseButton1Click:Connect(function()
+		local saved = projectSettings:save("", assetsFolderBox.Text)
+		projectRootBox.Text = saved.projectRoot
+		assetsFolderBox.Text = saved.assetsFolder
+		setStatus("Cleared Refab project root for this place.")
+		if self._exportView then
+			self._exportView.refresh()
+		end
+	end)
 
 	exportTab.MouseButton1Click:Connect(function()
 		self:setMode("Export")

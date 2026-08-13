@@ -2,6 +2,9 @@
 
 Refab is a Roblox Studio plugin for explicit asset packaging. It treats selected Studio objects as prefab-like `.rbxm` artifacts that can be committed to Git separately from Rojo-managed code.
 
+This repository is shaped like a normal Roblox game project. Refab lives inside
+`plugins/refab` as a local development plugin for the project.
+
 The intended split is:
 
 - Rojo: `src/client`, `src/server`, `src/shared`
@@ -11,44 +14,37 @@ The intended split is:
 ## Project Structure
 
 ```text
-default.project.json
-plugin.project.json
-dev/
-  test.project.json
 src/
-  main.plugin.luau
-  config/
-    Settings.luau
-  core/
-    AssetDefinition.luau
-    AssetPathResolver.luau
-    AssetValidator.luau
-    PluginController.luau
-  export/
-    ExportService.luau
-  import/
-    ImportService.luau
-  ui/
-    MainWindow.luau
-    ExportView.luau
-    ImportView.luau
-    components/
-      AssetList.luau
-      Button.luau
-      Checkbox.luau
+  client/
+  server/
+  shared/
+assets/
+  ...
+plugins/
+  refab/
+    plugin.project.json
+    src/
+      main.plugin.luau
+      config/
+      core/
+      export/
+      import/
+      ui/
+default.project.json
 ```
 
 ## Build
 
 Refab is a Studio plugin, not a place. The plugin build project is
-`plugin.project.json`, whose root is `src/main.plugin.luau`. Rojo 7.7.0 treats
-`.plugin.luau` scripts as plugin-run-context scripts.
+`plugins/refab/plugin.project.json`, whose root is
+`plugins/refab/src/main.plugin.luau`. Rojo 7.7.0 treats `.plugin.luau` scripts
+as plugin-run-context scripts.
 
 Install the pinned toolchain, then build the local plugin:
 
 ```powershell
 rokit install
-rojo build plugin.project.json --plugin Refab.rbxm
+rojo build plugins/refab/plugin.project.json --plugin Refab.rbxm
 ```
 
 Rojo writes `Refab.rbxm` into Roblox Studio's local plugins folder.
@@ -56,7 +52,7 @@ Rojo writes `Refab.rbxm` into Roblox Studio's local plugins folder.
 For a plain artifact in this repository instead, run:
 
 ```powershell
-rojo build plugin.project.json -o Refab.rbxm
+rojo build plugins/refab/plugin.project.json -o Refab.rbxm
 ```
 
 Refab does not need `rojo serve` for V1 testing. Build the plugin, open Studio,
@@ -71,16 +67,46 @@ On Windows, the local plugin folder is usually:
 Studio scans local plugins when Studio starts. After building or copying a
 local `.rbxm` plugin, fully restart Roblox Studio before testing it.
 
-If you specifically want a blank test place through Rojo Studio sync, use
-`default.project.json` or `dev/test.project.json`:
+For Rojo Studio sync, use the root `default.project.json`:
 
 ```powershell
 rojo serve default.project.json
 ```
 
-Do not serve `plugin.project.json`. It is intentionally a model/plugin artifact,
-not a place, so the Rojo Studio plugin will reject it with "Cannot sync a model
-as a place."
+Do not serve `plugins/refab/plugin.project.json`. It is intentionally a
+model/plugin artifact, not a place, so the Rojo Studio plugin will reject it
+with "Cannot sync a model as a place."
+
+## Project Workflow
+
+Refab is an asset workflow layer beside Rojo:
+
+```text
+src/    -> Rojo  -> code/tree sync
+assets/ -> Refab -> managed asset packages
+```
+
+On first use, set `Project Root` in the Refab panel, for example:
+
+```text
+C:/Roblox Projects/my-game
+```
+
+Refab stores this per place/experience with plugin settings. The `Assets Folder`
+defaults to `assets`.
+
+Roblox Studio plugin APIs do not currently expose a native folder picker for
+arbitrary project roots, so V1 uses a text field for the root path.
+
+V1 still uses Roblox Studio's native save/import dialogs because plugin-only
+Luau cannot silently read/write arbitrary project files. Refab now uses the
+saved project root to show and suggest exact asset paths like:
+
+```text
+C:/Roblox Projects/my-game/assets/Workspace/World/Boat.rbxm
+```
+
+Dialog avoidance and folder scanning are V2 bridge/CLI work, not V1.
 
 ## Export Workflow
 
@@ -101,17 +127,21 @@ assets/ReplicatedStorage/Items/Sword.rbxm
 
 ## Import Workflow
 
-The Import tab can prompt for multiple `.rbxm` or `.rbxmx` files and display them for selection. Native plugin-only import is intentionally guarded because current Roblox APIs expose selected local files as `File` objects but do not provide a supported API to deserialize arbitrary local `.rbxm` contents into live Instances.
+The Import tab can prompt for multiple `.rbxm` or `.rbxmx` files and display
+them for selection. Plugin-only Refab cannot scan `assets/` automatically
+because Roblox Studio plugin APIs do not expose directory listing or arbitrary
+filesystem reads. Native plugin-only import is intentionally guarded because
+current Roblox APIs expose selected local files as `File` objects but do not
+provide a supported API to deserialize arbitrary local `.rbxm` contents into
+live Instances.
 
 When Roblox adds such an API, or when a local bridge is added, the import service can be extended without rewriting the UI or path resolver.
 
 ## Supported Asset Types
 
-V1 export supports:
-
-- `Model`
-- `Folder`
-- `ScreenGui`
+V1 export supports any archivable Instance under a supported root. Refab no
+longer blocks `Part`, `MeshPart`, UI objects, or other normal asset objects just
+because they are not `Model`.
 
 V1 supported roots:
 
@@ -119,7 +149,25 @@ V1 supported roots:
 - `StarterGui`
 - `ReplicatedStorage`
 
-Scripts are allowed inside selected assets but shown with a warning because Refab is intended for assets, while Rojo remains responsible for code.
+Scripts can be part of `.rbxm` asset packages. Refab exports the selected
+archivable Instance tree as the asset artifact and does not block or warn on
+scripts.
+
+## Managed Asset Metadata
+
+When exporting, Refab registers the selected root Instance as a managed asset by
+setting attributes on that Instance:
+
+```text
+RefabAssetId
+RefabSourcePath
+RefabTargetPath
+RefabVersion
+```
+
+Refab only treats Instances with `RefabAssetId` as managed. This is the first
+step toward the planned incremental sync model where unmanaged Workspace objects
+are never touched.
 
 ## API Spike Findings
 

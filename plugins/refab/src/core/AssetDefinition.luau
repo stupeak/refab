@@ -8,7 +8,10 @@ export type AssetDefinition = {
 	className: string,
 	instance: Instance?,
 	assetPath: string,
+	fullAssetPath: string,
 	parentPath: string,
+	assetId: string?,
+	managed: boolean,
 	selected: boolean,
 	status: AssetStatus,
 	message: string?,
@@ -17,14 +20,17 @@ export type AssetDefinition = {
 
 local AssetDefinition = {}
 
-function AssetDefinition.fromInstance(instance: Instance, assetPath: string, parentPath: string): AssetDefinition
+function AssetDefinition.fromInstance(instance: Instance, assetPath: string, parentPath: string, fullAssetPath: string?, assetId: string?): AssetDefinition
 	return {
 		id = instance:GetDebugId(0),
 		name = instance.Name,
 		className = instance.ClassName,
 		instance = instance,
 		assetPath = assetPath,
+		fullAssetPath = fullAssetPath or assetPath,
 		parentPath = parentPath,
+		assetId = assetId,
+		managed = assetId ~= nil,
 		selected = true,
 		status = "Ready",
 		message = nil,
@@ -44,7 +50,10 @@ function AssetDefinition.fromFile(file: Instance, assetPath: string, parentPath:
 		className = file.ClassName,
 		instance = nil,
 		assetPath = assetPath,
+		fullAssetPath = assetPath,
 		parentPath = parentPath,
+		assetId = nil,
+		managed = false,
 		selected = true,
 		status = "Ready",
 		message = nil,

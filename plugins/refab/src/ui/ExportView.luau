@@ -4,6 +4,8 @@ local Button = require(script.Parent.components.Button)
 local AssetList = require(script.Parent.components.AssetList)
 local AssetDefinition = require(script.Parent.Parent.core.AssetDefinition)
 
+local Selection = game:GetService("Selection")
+
 local ExportView = {}
 
 export type Handle = {
@@ -19,7 +21,7 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundTransparency = 1
 
-	local list = AssetList.create()
+	local list = AssetList.create("Select Instances in Explorer to preview export assets.")
 	list.root.Position = UDim2.new(0, 0, 0, 0)
 	list.root.Parent = root
 
@@ -27,7 +29,7 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	controls.Name = "Controls"
 	controls.AnchorPoint = Vector2.new(0, 1)
 	controls.Position = UDim2.new(0, 0, 1, 0)
-	controls.Size = UDim2.new(1, 0, 0, 88)
+	controls.Size = UDim2.new(1, 0, 0, 130)
 	controls.BackgroundTransparency = 1
 	controls.Parent = root
 
@@ -55,8 +57,29 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	deselectAllButton.Size = UDim2.new(0.33, -6, 0, 32)
 	deselectAllButton.Parent = row
 
+	local probeRow = Instance.new("Frame")
+	probeRow.Name = "ProbeActions"
+	probeRow.Position = UDim2.new(0, 0, 0, 42)
+	probeRow.Size = UDim2.new(1, 0, 0, 34)
+	probeRow.BackgroundTransparency = 1
+	probeRow.Parent = controls
+
+	local probeRowLayout = Instance.new("UIListLayout")
+	probeRowLayout.FillDirection = Enum.FillDirection.Horizontal
+	probeRowLayout.Padding = UDim.new(0, 8)
+	probeRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	probeRowLayout.Parent = probeRow
+
+	local serializeTestButton = Button.create({ text = "Serialize Test", height = 32 })
+	serializeTestButton.Size = UDim2.new(0.5, -4, 0, 32)
+	serializeTestButton.Parent = probeRow
+
+	local roundtripTestButton = Button.create({ text = "Roundtrip Test", height = 32 })
+	roundtripTestButton.Size = UDim2.new(0.5, -4, 0, 32)
+	roundtripTestButton.Parent = probeRow
+
 	local exportButton = Button.create({ text = "EXPORT SELECTED", height = 42, accent = true })
-	exportButton.Position = UDim2.new(0, 0, 0, 44)
+	exportButton.Position = UDim2.new(0, 0, 0, 88)
 	exportButton.Parent = controls
 
 	local function render()
@@ -66,7 +89,7 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	local function refresh()
 		assets = exportService:getSelectionAssets()
 		if #assets == 0 then
-			setStatus("No supported assets selected.", true)
+			setStatus("No exportable assets selected.", true)
 		else
 			setStatus("Loaded " .. tostring(#assets) .. " selected item(s).")
 		end
@@ -74,6 +97,7 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	end
 
 	refreshButton.MouseButton1Click:Connect(refresh)
+	Selection.SelectionChanged:Connect(refresh)
 
 	selectAllButton.MouseButton1Click:Connect(function()
 		for _, asset in assets do
@@ -93,6 +117,32 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 
 	exportButton.MouseButton1Click:Connect(function()
 		local result = exportService:exportSelected(assets)
+		setStatus(result.message, not result.ok)
+	end)
+
+	serializeTestButton.MouseButton1Click:Connect(function()
+		local result = exportService:probeSerializeSelected(assets)
+		print(
+			"REFAB SERIALIZE TEST",
+			result.valueType,
+			result.byteCount,
+			result.canConvertToString,
+			result.stringByteCount,
+			result.previewHex,
+			result.previewText
+		)
+		setStatus(result.message, not result.ok)
+	end)
+
+	roundtripTestButton.MouseButton1Click:Connect(function()
+		local result = exportService:probeRoundtripSelected(assets)
+		print(
+			"REFAB ROUNDTRIP TEST",
+			result.ok,
+			result.serializedByteCount,
+			result.deserializedCount,
+			result.names
+		)
 		setStatus(result.message, not result.ok)
 	end)
 

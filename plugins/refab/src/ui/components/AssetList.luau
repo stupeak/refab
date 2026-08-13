@@ -19,10 +19,10 @@ local function statusColor(status: AssetDefinition.AssetStatus): Color3
 	return Color3.fromRGB(90, 90, 90)
 end
 
-function AssetList.create(): Handle
+function AssetList.create(emptyMessage: string?): Handle
 	local root = Instance.new("ScrollingFrame")
 	root.Name = "AssetList"
-	root.Size = UDim2.new(1, 0, 1, -96)
+	root.Size = UDim2.new(1, 0, 1, -138)
 	root.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	root.BorderColor3 = Color3.fromRGB(205, 205, 205)
 	root.BorderSizePixel = 1
@@ -115,7 +115,8 @@ function AssetList.create(): Handle
 		path.Position = UDim2.new(0, 42, 0, 25)
 		path.Size = UDim2.new(1, -52, 0, 18)
 		path.BackgroundTransparency = 1
-		path.Text = asset.assetPath ~= "" and asset.assetPath or (asset.message or "")
+		local managedPrefix = if asset.managed then "[managed] " else "[new] "
+		path.Text = asset.assetPath ~= "" and (managedPrefix .. asset.fullAssetPath) or (asset.message or "")
 		path.TextXAlignment = Enum.TextXAlignment.Left
 		path.TextColor3 = statusColor(asset.status)
 		path.TextSize = 13
@@ -144,7 +145,7 @@ function AssetList.create(): Handle
 		render = function(assets: {AssetDefinition.AssetDefinition})
 			clear()
 			if #assets == 0 then
-				addEmpty("No assets to show.")
+				addEmpty(emptyMessage or "No assets to show.")
 				return
 			end
 

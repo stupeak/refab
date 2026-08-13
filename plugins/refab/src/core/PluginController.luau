@@ -5,6 +5,7 @@ local root = script.Parent.Parent
 local ExportService = require(root:WaitForChild("export"):WaitForChild("ExportService"))
 local ImportService = require(root:WaitForChild("import"):WaitForChild("ImportService"))
 local MainWindow = require(root:WaitForChild("ui"):WaitForChild("MainWindow"))
+local ProjectSettings = require(root:WaitForChild("core"):WaitForChild("ProjectSettings"))
 local Settings = require(root:WaitForChild("config"):WaitForChild("Settings"))
 
 local PluginController = {}
@@ -30,9 +31,12 @@ function PluginController:start()
 	button.ClickableWhenViewportHidden = true
 	self._button = button
 
-	local exportService = ExportService.new(self._plugin)
+	local projectSettings = ProjectSettings.new(self._plugin)
+	projectSettings:load()
+
+	local exportService = ExportService.new(self._plugin, projectSettings)
 	local importService = ImportService.new()
-	self._window = MainWindow.new(self._plugin, exportService, importService)
+	self._window = MainWindow.new(self._plugin, exportService, importService, projectSettings)
 	self._window:setEnabled(false)
 
 	button.Click:Connect(function()

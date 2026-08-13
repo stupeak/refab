@@ -18,7 +18,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundTransparency = 1
 
-	local list = AssetList.create()
+	local list = AssetList.create("Plugin-only Refab cannot scan local assets folders. Click Choose .rbxm Files to load files with Roblox Studio's file picker.")
 	list.root.Position = UDim2.new(0, 0, 0, 0)
 	list.root.Parent = root
 
@@ -42,7 +42,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	rowLayout.Parent = row
 
-	local chooseFilesButton = Button.create({ text = "Choose Files", height = 32 })
+	local chooseFilesButton = Button.create({ text = "Choose .rbxm Files", height = 32 })
 	chooseFilesButton.Size = UDim2.new(0.34, -6, 0, 32)
 	chooseFilesButton.Parent = row
 
