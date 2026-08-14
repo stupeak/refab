@@ -3,15 +3,11 @@ use std::env;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
-mod app;
-mod assets;
-mod paths;
-mod server;
-mod version;
-
-use app::App;
-use server::{helper_port, run_helper, status_payload};
-use version::CLI_VERSION;
+use refab::{
+    app::App,
+    server::{helper_port, run_helper, status_payload},
+    version::CLI_VERSION,
+};
 
 fn main() {
     if let Err(error) = run() {
