@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate release tag
         run: |
@@ -46,19 +46,8 @@ jobs:
         working-directory: cli
         run: cargo clippy --locked -- -D warnings
 
-      - name: Install Rokit
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
-          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
-
-      - name: Authenticate Rokit
-        run: rokit authenticate github --token "${{ github.token }}"
-
-      - name: Trust Rojo
-        run: rokit add rojo-rbx/rojo@7.7.0
-
       - name: Install Rojo
-        run: rokit install
+        run: cargo install rojo --version 7.7.0 --locked
 
       - name: Build plugin
         run: rojo build plugins/refab/plugin.project.json -o Refab.rbxm
@@ -97,7 +86,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve version
         id: version
@@ -139,7 +128,7 @@ jobs:
           echo "archive=$archive" >> "$GITHUB_ENV"
 
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.archive }}
           path: ${{ env.archive }}
@@ -152,27 +141,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Install Rokit
+      - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
-          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+          rustup update stable
+          rustup default stable
 
-      - name: Authenticate Rokit
-        run: rokit authenticate github --token "${{ github.token }}"
-
-      - name: Trust Rojo
-        run: rokit add rojo-rbx/rojo@7.7.0
-
-      - name: Install tools
-        run: rokit install
+      - name: Install Rojo
+        run: cargo install rojo --version 7.7.0 --locked
 
       - name: Build plugin
         run: rojo build plugins/refab/plugin.project.json -o Refab.rbxm
 
       - name: Upload plugin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Refab.rbxm
           path: Refab.rbxm
@@ -190,7 +173,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve version
         id: version
@@ -203,7 +186,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: release-artifacts
           merge-multiple: true
