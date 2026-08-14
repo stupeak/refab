@@ -1,0 +1,215 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate release tag
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tags must look like v0.1.0 or v0.1.0-test.1"
+            exit 1
+          fi
+
+      - name: Install Rust toolchain
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Check Rust formatting
+        working-directory: cli
+        run: cargo fmt --all -- --check
+
+      - name: Check Rust CLI
+        working-directory: cli
+        run: cargo check --locked
+
+      - name: Test Rust CLI
+        working-directory: cli
+        run: cargo test --locked
+
+      - name: Clippy Rust CLI
+        working-directory: cli
+        run: cargo clippy --locked -- -D warnings
+
+      - name: Install Rokit
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+
+      - name: Authenticate Rokit
+        run: rokit authenticate github --token "${{ github.token }}"
+
+      - name: Install Rojo
+        run: rokit install
+
+      - name: Build plugin
+        run: rojo build plugins/refab/plugin.project.json -o Refab.rbxm
+
+  build-cli:
+    name: CLI (${{ matrix.artifact_os }}-${{ matrix.artifact_arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: validate
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_os: windows
+            artifact_arch: x86_64
+            exe: refab.exe
+            archive_ext: zip
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_os: linux
+            artifact_arch: x86_64
+            exe: refab
+            archive_ext: tar.gz
+          - runner: macos-14
+            target: aarch64-apple-darwin
+            artifact_os: macos
+            artifact_arch: aarch64
+            exe: refab
+            archive_ext: tar.gz
+
+    defaults:
+      run:
+        working-directory: cli
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+
+      - name: Build CLI
+        run: cargo build --locked --release --target ${{ matrix.target }}
+
+      - name: Package CLI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $archive = "refab-$version-${{ matrix.artifact_os }}-${{ matrix.artifact_arch }}.zip"
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.exe }}" "package/${{ matrix.exe }}" -Force
+          Compress-Archive -Path "package/${{ matrix.exe }}" -DestinationPath "../$archive" -Force
+          "archive=$archive" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Package CLI (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          archive="refab-$version-${{ matrix.artifact_os }}-${{ matrix.artifact_arch }}.tar.gz"
+          mkdir -p package
+          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" "package/${{ matrix.exe }}"
+          tar -czf "../$archive" -C package "${{ matrix.exe }}"
+          echo "archive=$archive" >> "$GITHUB_ENV"
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.archive }}
+          path: ${{ env.archive }}
+          if-no-files-found: error
+
+  build-plugin:
+    name: Plugin
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rokit
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+
+      - name: Authenticate Rokit
+        run: rokit authenticate github --token "${{ github.token }}"
+
+      - name: Install tools
+        run: rokit install
+
+      - name: Build plugin
+        run: rojo build plugins/refab/plugin.project.json -o Refab.rbxm
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Refab.rbxm
+          path: Refab.rbxm
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - build-cli
+      - build-plugin
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tags must look like v0.1.0 or v0.1.0-test.1"
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Show release artifacts
+        run: find release-artifacts -maxdepth 1 -type f -print | sort
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release-artifacts/* \
+            --verify-tag \
+            --title "Refab $GITHUB_REF_NAME" \
+            --generate-notes
