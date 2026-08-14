@@ -9,7 +9,7 @@ plugin and CLI helper.
 default.project.json      # Rojo place project. Use with rojo serve.
 src/                      # Game code synced by Rojo.
 assets/                   # Refab-managed .rbxm assets. Track these in Git.
-plugins/refab/            # Roblox Studio plugin source/build project.
+plugin/                  # Roblox Studio plugin source/build project.
 cli/                      # Rust local helper server for filesystem access.
 ```
 
@@ -24,7 +24,7 @@ rojo serve default.project.json
 Build/install the Studio plugin:
 
 ```powershell
-rojo build plugins/refab/plugin.project.json --plugin Refab.rbxm
+rojo build plugin/plugin.project.json --plugin Refab.rbxm
 ```
 
 Run the helper:
@@ -69,7 +69,7 @@ Asset identity is the canonical source path, which is folder plus file name:
 asset name as another identity key; the path already contains the name. Export
 writes bytes directly under assets/<RobloxService>/...
 
-Do not serve `plugins/refab/plugin.project.json`; it is a plugin artifact, not a
+Do not serve `plugin/plugin.project.json`; it is a plugin artifact, not a
 DataModel place.
 
 Do not ignore `assets/**/*.rbxm`; these are source artifacts for the asset

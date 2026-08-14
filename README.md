@@ -126,5 +126,5 @@ Restart Roblox Studio after installing or updating the plugin.
 Development notes live outside this user README:
 
 - `AGENTS.md`
-- `plugins/refab/README.md`
+- `plugin/README.md`
 - `cli/README.md`

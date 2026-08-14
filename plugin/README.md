@@ -5,13 +5,13 @@ This folder contains the Refab Roblox Studio plugin source and build project.
 Build and install the plugin:
 
 ```powershell
-rojo build plugins/refab/plugin.project.json --plugin Refab.rbxm
+rojo build plugin/plugin.project.json --plugin Refab.rbxm
 ```
 
 Build a local artifact:
 
 ```powershell
-rojo build plugins/refab/plugin.project.json -o Refab.rbxm
+rojo build plugin/plugin.project.json -o Refab.rbxm
 ```
 
 Run the Rust filesystem helper from the repo root:

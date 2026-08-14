@@ -78,5 +78,5 @@ For a fully local smoke test, run:
 
 ```powershell
 cargo build --manifest-path cli/Cargo.toml --release
-rojo build plugins/refab/plugin.project.json -o Refab.rbxm
+rojo build plugin/plugin.project.json -o Refab.rbxm
 ```

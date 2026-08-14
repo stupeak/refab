@@ -12,7 +12,7 @@ function Step {
 }
 
 Step "Plugin build"
-rojo build plugins/refab/plugin.project.json -o Refab.rbxm
+rojo build plugin/plugin.project.json -o Refab.rbxm
 Remove-Item Refab.rbxm
 
 Step "Done"

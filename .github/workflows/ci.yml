@@ -59,4 +59,4 @@ jobs:
         run: cargo install rojo --version 7.7.0 --locked
 
       - name: Build plugin
-        run: rojo build plugins/refab/plugin.project.json -o Refab.rbxm
+        run: rojo build plugin/plugin.project.json -o Refab.rbxm
