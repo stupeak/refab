@@ -13,6 +13,7 @@ export type MainWindow = typeof(setmetatable({} :: {
 	_exportView: ExportView.Handle?,
 	_importView: ImportView.Handle?,
 	_content: Frame,
+	_tabs: Frame,
 	_status: TextLabel,
 	_exportTab: TextButton,
 	_importTab: TextButton,
@@ -22,14 +23,74 @@ export type MainWindow = typeof(setmetatable({} :: {
 	_connectButton: TextButton,
 	_connected: boolean,
 	_refreshHelper: (() -> ())?,
+	_mode: "Export" | "Import",
 }, MainWindow))
+
+local function createCountBadge(name: string, color: Color3, xOffset: number): TextLabel
+	local badge = Instance.new("TextLabel")
+	badge.Name = name
+	badge.AnchorPoint = Vector2.new(1, 0.5)
+	badge.Position = UDim2.new(1, xOffset, 0.5, 0)
+	badge.Size = UDim2.new(0, 22, 0, 16)
+	badge.BackgroundColor3 = color
+	badge.BorderSizePixel = 0
+	badge.Text = "0"
+	badge.TextColor3 = Color3.fromRGB(255, 255, 255)
+	badge.TextSize = 11
+	badge.Font = Enum.Font.SourceSansBold
+	badge.Visible = false
+	badge.Parent = nil
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 3)
+	corner.Parent = badge
+
+	return badge
+end
 
 local function createTab(text: string): TextButton
 	local tab = Button.create({ text = text, height = 28 })
 	tab.Size = UDim2.new(0.5, -3, 0, 28)
-	tab.BackgroundColor3 = Color3.fromRGB(232, 232, 232)
-	tab.BorderColor3 = Color3.fromRGB(170, 170, 170)
+	tab.BackgroundColor3 = Color3.fromRGB(222, 222, 222)
+	tab.BorderColor3 = Color3.fromRGB(150, 150, 150)
+	tab.TextXAlignment = Enum.TextXAlignment.Left
+	tab.TextSize = 14
+
+	local textPadding = Instance.new("UIPadding")
+	textPadding.PaddingLeft = UDim.new(0, 10)
+	textPadding.PaddingRight = UDim.new(0, 58)
+	textPadding.Parent = tab
+
+	local newBadge = createCountBadge("NewCountBadge", Color3.fromRGB(20, 130, 70), -34)
+	newBadge.Parent = tab
+
+	local changedBadge = createCountBadge("ChangedCountBadge", Color3.fromRGB(170, 120, 0), -8)
+	changedBadge.Parent = tab
+
 	return tab
+end
+
+local function setTabCounts(tab: TextButton, newCount: number, changedCount: number)
+	local newBadge = tab:FindFirstChild("NewCountBadge")
+	if newBadge and newBadge:IsA("TextLabel") then
+		newBadge.Text = tostring(newCount)
+		newBadge.Visible = newCount > 0
+	end
+
+	local changedBadge = tab:FindFirstChild("ChangedCountBadge")
+	if changedBadge and changedBadge:IsA("TextLabel") then
+		changedBadge.Text = tostring(changedCount)
+		changedBadge.Visible = changedCount > 0
+	end
+end
+
+local function setTabSelected(tab: TextButton, selected: boolean)
+	tab.BackgroundColor3 = if selected then Color3.fromRGB(0, 95, 170) else Color3.fromRGB(222, 222, 222)
+	tab.BorderColor3 = if selected then Color3.fromRGB(0, 65, 125) else Color3.fromRGB(150, 150, 150)
+	tab.BorderSizePixel = if selected then 2 else 1
+	tab.Font = if selected then Enum.Font.SourceSansBold else Enum.Font.SourceSansSemibold
+	tab.TextColor3 = if selected then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(35, 35, 35)
+
 end
 
 local function createLabel(text: string, size: number?, bold: boolean?): TextLabel
@@ -145,7 +206,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 	status.Position = UDim2.new(0, 0, 1, 0)
 	status.Size = UDim2.new(1, 0, 0, 32)
 	status.BackgroundTransparency = 1
-	status.Text = "Ready."
+	status.Text = ""
 	status.TextXAlignment = Enum.TextXAlignment.Left
 	status.TextYAlignment = Enum.TextYAlignment.Center
 	status.TextWrapped = true
@@ -159,6 +220,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 		_exportView = nil,
 		_importView = nil,
 		_content = content,
+		_tabs = tabs,
 		_status = status,
 		_exportTab = exportTab,
 		_importTab = importTab,
@@ -168,6 +230,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 		_connectButton = connectButton,
 		_connected = false,
 		_refreshHelper = nil,
+		_mode = "Import",
 	}, MainWindow)
 
 	local function setStatus(message: string, isError: boolean?)
@@ -179,6 +242,8 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 		local helperStatus = helperClient:getStatus()
 		if helperStatus.ok then
 			self._connected = true
+			tabs.Visible = true
+			content.Visible = true
 			helperState.Text = titleText
 			helperState.TextColor3 = Color3.fromRGB(20, 130, 70)
 			helperProject.Text = "Project: " .. tostring(helperStatus.projectRoot or "-")
@@ -187,9 +252,20 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 			connectButton.BackgroundColor3 = Color3.fromRGB(225, 225, 225)
 			connectButton.BorderColor3 = Color3.fromRGB(150, 150, 150)
 			connectButton.TextColor3 = Color3.fromRGB(35, 35, 35)
-			setStatus("Connected to Refab helper.")
+			self:setMode(self._mode)
 		else
 			self._connected = false
+			tabs.Visible = false
+			content.Visible = false
+			status.Text = ""
+			setTabCounts(importTab, 0, 0)
+			setTabCounts(exportTab, 0, 0)
+			if self._importView then
+				self._importView.reset()
+			end
+			if self._exportView then
+				self._exportView.reset()
+			end
 			helperState.Text = titleText
 			helperState.TextColor3 = Color3.fromRGB(196, 43, 28)
 			helperProject.Text = "Project: -"
@@ -198,7 +274,6 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 			connectButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
 			connectButton.BorderColor3 = Color3.fromRGB(0, 100, 185)
 			connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-			setStatus("Run: cargo run --manifest-path cli/Cargo.toml -- serve", true)
 		end
 	end
 
@@ -206,6 +281,17 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 	connectButton.MouseButton1Click:Connect(function()
 		if self._connected then
 			self._connected = false
+			tabs.Visible = false
+			content.Visible = false
+			status.Text = ""
+			setTabCounts(importTab, 0, 0)
+			setTabCounts(exportTab, 0, 0)
+			if self._importView then
+				self._importView.reset()
+			end
+			if self._exportView then
+				self._exportView.reset()
+			end
 			helperState.Text = titleText
 			helperState.TextColor3 = Color3.fromRGB(90, 90, 90)
 			helperProject.Text = "Project: -"
@@ -214,17 +300,20 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 			connectButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
 			connectButton.BorderColor3 = Color3.fromRGB(0, 100, 185)
 			connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-			setStatus("Disconnected from helper.")
 			return
 		end
 
 		refreshHelper()
 	end)
 
-	self._exportView = ExportView.create(exportService, setStatus)
+	self._exportView = ExportView.create(exportService, setStatus, function(newCount: number, changedCount: number)
+		setTabCounts(exportTab, newCount, changedCount)
+	end)
 	self._exportView.root.Parent = content
 
-	self._importView = ImportView.create(importService, setStatus)
+	self._importView = ImportView.create(importService, setStatus, function(newCount: number, changedCount: number)
+		setTabCounts(importTab, newCount, changedCount)
+	end)
 	self._importView.root.Parent = content
 
 	exportTab.MouseButton1Click:Connect(function()
@@ -241,23 +330,23 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 end
 
 function MainWindow:setMode(mode: "Export" | "Import")
+	self._mode = mode
 	local showingExport = mode == "Export"
 	if self._exportView then
 		self._exportView.root.Visible = showingExport
-		if showingExport then
+		if self._connected and showingExport then
 			self._exportView.refresh()
 		end
 	end
 	if self._importView then
 		self._importView.root.Visible = not showingExport
+		if self._connected and not showingExport then
+			self._importView.refresh()
+		end
 	end
 
-	self._exportTab.BackgroundColor3 = if showingExport then Color3.fromRGB(0, 120, 215) else Color3.fromRGB(232, 232, 232)
-	self._exportTab.BorderColor3 = if showingExport then Color3.fromRGB(0, 100, 185) else Color3.fromRGB(170, 170, 170)
-	self._exportTab.TextColor3 = if showingExport then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(35, 35, 35)
-	self._importTab.BackgroundColor3 = if showingExport then Color3.fromRGB(232, 232, 232) else Color3.fromRGB(0, 120, 215)
-	self._importTab.BorderColor3 = if showingExport then Color3.fromRGB(170, 170, 170) else Color3.fromRGB(0, 100, 185)
-	self._importTab.TextColor3 = if showingExport then Color3.fromRGB(35, 35, 35) else Color3.fromRGB(255, 255, 255)
+	setTabSelected(self._exportTab, showingExport)
+	setTabSelected(self._importTab, not showingExport)
 end
 
 function MainWindow:setEnabled(enabled: boolean)

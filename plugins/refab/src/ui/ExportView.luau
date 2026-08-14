@@ -11,6 +11,7 @@ local ExportView = {}
 export type Handle = {
 	root: Frame,
 	refresh: () -> (),
+	reset: () -> (),
 }
 
 local function createToolbarButton(text: string): TextButton
@@ -22,7 +23,20 @@ local function createToolbarButton(text: string): TextButton
 	return button
 end
 
-function ExportView.create(exportService: any, setStatus: (string, boolean?) -> ()): Handle
+local function countAssets(assets: {AssetDefinition.AssetDefinition}): (number, number)
+	local newCount = 0
+	local changedCount = 0
+	for _, asset in assets do
+		if asset.status == "New" then
+			newCount += 1
+		elseif asset.status == "Changed" then
+			changedCount += 1
+		end
+	end
+	return newCount, changedCount
+end
+
+function ExportView.create(exportService: any, setStatus: (string, boolean?) -> (), onCountsChanged: ((number, number) -> ())?): Handle
 	local assets: {AssetDefinition.AssetDefinition} = {}
 
 	local root = Instance.new("Frame")
@@ -30,23 +44,25 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundTransparency = 1
 
-	local list = AssetList.create("No staged Roblox changes. Select Instances in Explorer.")
-	list.root.Position = UDim2.new(0, 0, 0, 0)
-	list.root.Parent = root
+	local panel = Instance.new("Frame")
+	panel.Name = "AssetPanel"
+	panel.Size = UDim2.new(1, 0, 1, -54)
+	panel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	panel.BorderColor3 = Color3.fromRGB(205, 205, 205)
+	panel.BorderSizePixel = 1
+	panel.Parent = root
 
-	local controls = Instance.new("Frame")
-	controls.Name = "Controls"
-	controls.AnchorPoint = Vector2.new(0, 1)
-	controls.Position = UDim2.new(0, 0, 1, 0)
-	controls.Size = UDim2.new(1, 0, 0, 88)
-	controls.BackgroundTransparency = 1
-	controls.Parent = root
+	local list = AssetList.create("No staged Roblox changes. Select Instances in Explorer.")
+	list.root.Position = UDim2.new(0, 0, 0, 42)
+	list.root.Size = UDim2.new(1, 0, 1, -42)
+	list.root.Parent = panel
 
 	local row = Instance.new("Frame")
 	row.Name = "BulkActions"
-	row.Size = UDim2.new(1, 0, 0, 28)
+	row.Position = UDim2.new(0, 8, 0, 8)
+	row.Size = UDim2.new(1, -16, 0, 28)
 	row.BackgroundTransparency = 1
-	row.Parent = controls
+	row.Parent = panel
 
 	local rowLayout = Instance.new("UIListLayout")
 	rowLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -67,8 +83,9 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	deselectAllButton.Parent = row
 
 	local exportButton = Button.create({ text = "SAVE TO LOCAL", height = 42, accent = true })
-	exportButton.Position = UDim2.new(0, 0, 0, 38)
-	exportButton.Parent = controls
+	exportButton.AnchorPoint = Vector2.new(0, 1)
+	exportButton.Position = UDim2.new(0, 0, 1, 0)
+	exportButton.Parent = root
 
 	local modal = Instance.new("Frame")
 	modal.Name = "ConfirmChangedModal"
@@ -138,6 +155,9 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 
 	local function render()
 		list.render(assets)
+		if onCountsChanged then
+			onCountsChanged(countAssets(assets))
+		end
 	end
 
 	local function getStagedChangedAssets(): {AssetDefinition.AssetDefinition}
@@ -170,11 +190,6 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 
 	local function refresh()
 		assets = exportService:getSelectionAssets()
-		if #assets == 0 then
-			setStatus("No pending selection changes.", true)
-		else
-			setStatus("Found " .. tostring(#assets) .. " selected change(s).")
-		end
 		render()
 	end
 
@@ -216,11 +231,16 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 		saveSelected()
 	end)
 
-	refresh()
+	local function reset()
+		assets = {}
+		modal.Visible = false
+		render()
+	end
 
 	return {
 		root = root,
 		refresh = refresh,
+		reset = reset,
 	}
 end
 

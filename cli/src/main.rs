@@ -1,51 +1,22 @@
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose, Engine as _};
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
 };
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 use url::Url;
-use uuid::Uuid;
 use walkdir::WalkDir;
 
 const DEFAULT_PORT: u16 = 34874;
 const ASSETS_DIR: &str = "assets";
-const MANIFEST_PATH: &str = ".refab/manifest.json";
 
 #[derive(Debug, Clone)]
 struct App {
     project_root: PathBuf,
     assets_root: PathBuf,
-    manifest_path: PathBuf,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Manifest {
-    version: u32,
-    assets_root: String,
-    assets: BTreeMap<String, ManifestAsset>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ManifestAsset {
-    id: String,
-    name: String,
-    source: String,
-    target: String,
-    class_name: String,
-    source_hash: String,
-    size: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_exported_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_scanned_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,7 +43,6 @@ enum AssetState {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WriteAssetRequest {
-    id: Option<String>,
     name: Option<String>,
     source: String,
     target: Option<String>,
@@ -117,47 +87,17 @@ impl App {
         let project_root = find_project_root(&start);
         Ok(Self {
             assets_root: project_root.join(ASSETS_DIR),
-            manifest_path: project_root.join(MANIFEST_PATH),
             project_root,
         })
     }
 
     fn ensure_project_folders(&self) -> Result<()> {
         fs::create_dir_all(&self.assets_root)?;
-        if let Some(parent) = self.manifest_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        Ok(())
-    }
-
-    fn read_manifest(&self) -> Result<Manifest> {
-        if !self.manifest_path.exists() {
-            return Ok(Manifest::empty());
-        }
-
-        let text = fs::read_to_string(&self.manifest_path)
-            .with_context(|| format!("failed to read {}", slash(&self.manifest_path)))?;
-        let mut manifest: Manifest = serde_json::from_str(&text)
-            .with_context(|| format!("failed to parse {}", MANIFEST_PATH))?;
-        if manifest.version == 0 {
-            manifest.version = 1;
-        }
-        if manifest.assets_root.is_empty() {
-            manifest.assets_root = ASSETS_DIR.to_owned();
-        }
-        Ok(manifest)
-    }
-
-    fn write_manifest(&self, manifest: &Manifest) -> Result<()> {
-        self.ensure_project_folders()?;
-        let text = serde_json::to_string_pretty(manifest)?;
-        fs::write(&self.manifest_path, format!("{text}\n"))?;
         Ok(())
     }
 
     fn scan_assets(&self) -> Result<Vec<AssetSummary>> {
         self.ensure_project_folders()?;
-        let manifest = self.read_manifest()?;
         let mut assets = Vec::new();
 
         for entry in WalkDir::new(&self.assets_root)
@@ -176,34 +116,17 @@ impl App {
             let bytes = fs::read(absolute)?;
             let relative = slash(absolute.strip_prefix(&self.assets_root)?);
             let source = format!("{ASSETS_DIR}/{relative}");
-            let previous = manifest
-                .assets
-                .values()
-                .find(|asset| asset.source == source);
             let hash = sha256_hex(&bytes);
-            let status = match previous {
-                Some(asset) if asset.source_hash == hash => AssetState::Clean,
-                Some(_) => AssetState::Changed,
-                None => AssetState::New,
-            };
 
             assets.push(AssetSummary {
-                id: previous
-                    .map(|asset| asset.id.clone())
-                    .unwrap_or_else(|| Uuid::new_v4().to_string()),
-                name: previous
-                    .map(|asset| asset.name.clone())
-                    .unwrap_or_else(|| asset_name(&relative)),
+                id: source.clone(),
+                name: asset_name(&relative),
                 source: source.clone(),
-                target: previous
-                    .map(|asset| asset.target.clone())
-                    .unwrap_or_else(|| infer_target(&relative)),
-                class_name: previous
-                    .map(|asset| asset.class_name.clone())
-                    .unwrap_or_else(|| "rbxm".to_owned()),
+                target: infer_target(&relative),
+                class_name: "rbxm".to_owned(),
                 hash,
                 size: bytes.len() as u64,
-                status,
+                status: AssetState::Clean,
             });
         }
 
@@ -224,16 +147,6 @@ impl App {
             return Err(anyhow!("asset source escapes assets directory"));
         }
         Ok(absolute)
-    }
-}
-
-impl Manifest {
-    fn empty() -> Self {
-        Self {
-            version: 1,
-            assets_root: ASSETS_DIR.to_owned(),
-            assets: BTreeMap::new(),
-        }
     }
 }
 
@@ -322,7 +235,6 @@ fn status_payload(app: &App) -> Result<serde_json::Value> {
         "ok": true,
         "projectRoot": slash(&app.project_root),
         "assetsRoot": slash(&app.assets_root),
-        "manifestPath": slash(&app.manifest_path),
         "assetCount": app.scan_assets()?.len(),
     }))
 }
@@ -402,30 +314,16 @@ fn handle_write_asset(app: &App, request: &mut Request) -> Result<serde_json::Va
 
     let relative = slash(absolute.strip_prefix(&app.assets_root.canonicalize_or_intended())?);
     let source = format!("{ASSETS_DIR}/{relative}");
-    let mut manifest = app.read_manifest()?;
-    let existing_id_for_source = manifest
-        .assets
-        .values()
-        .find(|asset| asset.source == source)
-        .map(|asset| asset.id.clone());
-    let id = existing_id_for_source
-        .or(payload.id)
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
-
-    manifest.assets.retain(|_, asset| asset.source != source);
-    let entry = ManifestAsset {
-        id: id.clone(),
+    let entry = AssetSummary {
+        id: source.clone(),
         name: payload.name.unwrap_or_else(|| asset_name(&relative)),
         source: source.clone(),
         target: payload.target.unwrap_or_else(|| infer_target(&relative)),
         class_name: payload.class_name.unwrap_or_else(|| "rbxm".to_owned()),
-        source_hash: sha256_hex(&bytes),
+        hash: sha256_hex(&bytes),
         size: bytes.len() as u64,
-        last_exported_at: Some(Utc::now().to_rfc3339()),
-        last_scanned_at: None,
+        status: AssetState::Clean,
     };
-    manifest.assets.insert(id, entry.clone());
-    app.write_manifest(&manifest)?;
 
     Ok(serde_json::json!({
         "ok": true,

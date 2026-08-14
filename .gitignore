@@ -17,9 +17,7 @@
 /*.inspect.rbxmx
 
 # Refab helper runtime files
-/.refab/*.pid
-/.refab/*.log
-/.refab/tmp/
+/.refab/
 
 # Tool/cache clutter
 .luau-lsp/

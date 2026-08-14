@@ -9,7 +9,7 @@ The intended split is:
 
 - Rojo: `src/client`, `src/server`, `src/shared`
 - Refab: `assets/Workspace`, `assets/StarterGui`, `assets/ReplicatedStorage`
-- Refab helper: local filesystem access and `.refab/manifest.json`
+- Refab helper: local filesystem access for `assets/**/*.rbxm`
 - Git: version control for both code and asset artifacts
 
 ## Project Structure
@@ -21,12 +21,9 @@ src/
   shared/
 assets/
   ...
-.refab/
-  manifest.json
 cli/
-  refab/
-    Cargo.toml
-    src/main.rs
+  Cargo.toml
+  src/main.rs
 plugins/
   refab/
     plugin.project.json
@@ -106,8 +103,8 @@ The helper listens on:
 http://127.0.0.1:34874
 ```
 
-It scans `assets/`, writes `.rbxm` bytes received from the plugin, reads `.rbxm`
-bytes for import, and updates `.refab/manifest.json`.
+It scans `assets/`, writes `.rbxm` bytes received from the plugin, and reads
+`.rbxm` bytes for import. The folder structure is the source of truth.
 
 ## Project Workflow
 
@@ -118,23 +115,10 @@ src/    -> Rojo  -> code/tree sync
 assets/ -> Refab -> managed asset packages
 ```
 
-On first use without the helper, set `Project Root` in the Refab panel, for example:
-
-```text
-C:/Roblox Projects/my-game
-```
-
-Refab stores this per place/experience with plugin settings. The `Assets Folder`
-defaults to `assets`.
-
-Roblox Studio plugin APIs do not currently expose a native folder picker for
-arbitrary project roots. With the helper running, Refab gets the project root
-from `cargo run --manifest-path cli/Cargo.toml -- serve`; the textbox is only a fallback/path
-preview.
-
 With the helper running, Refab can write serialized `.rbxm` bytes directly into
-`assets/` and read local `.rbxm` files for import. Without the helper, Studio
-plugin filesystem access is limited to native prompts.
+`assets/` and read local `.rbxm` files for import. Without the helper, the
+sync UI is hidden because Roblox Studio plugins cannot scan or write arbitrary
+project folders by themselves.
 
 ```text
 C:/Roblox Projects/my-game/assets/Workspace/World/Boat.rbxm
@@ -150,7 +134,7 @@ the helper writes/reads those bytes on disk.
 3. Use the Export tab.
 4. Select or deselect individual assets.
 5. Run `cargo run --manifest-path cli/Cargo.toml -- serve`.
-6. Click `EXPORT SELECTED`.
+6. Click `SAVE TO LOCAL`.
 7. Refab serializes the Instance and asks the helper to write the `.rbxm` file.
 
 Refab suggests paths such as:
@@ -171,9 +155,9 @@ With the helper running, the Import tab loads `assets/**/*.rbxm` from
 `GET /assets`. Importing reads `.rbxm` bytes from the helper, converts them back
 to a Luau `buffer`, and calls `SerializationService:DeserializeInstancesAsync`.
 
-The helper-backed path is the intended workflow. `Choose Files` remains as a
-manual fallback, but Roblox only gives the plugin file handles and file names,
-not a project-relative folder scan.
+The helper-backed path is the only intended local workflow. Roblox-only file
+pickers are not used because they do not preserve the project-relative folder
+path needed for `assets/<RobloxService>/...` mapping.
 
 ## Supported Asset Types
 
@@ -232,8 +216,6 @@ Known limitations:
 Official references:
 
 - https://create.roblox.com/docs/reference/engine/classes/Plugin
-- https://create.roblox.com/docs/reference/engine/classes/StudioService/PromptImportFilesAsync
-- https://create.roblox.com/docs/reference/engine/classes/File
 - https://create.roblox.com/docs/reference/engine/classes/ChangeHistoryService
 - https://create.roblox.com/docs/reference/engine/classes/InstanceFileSyncService
 
@@ -254,13 +236,12 @@ These require Roblox Studio:
 11. Validate path preview for `ReplicatedStorage`.
 12. Select an unsupported object and verify the error.
 13. Open export with empty selection and verify the empty-state message.
-14. Select an invalid file and verify the import error path.
+14. Place an asset under an unsupported `assets/<Root>` folder and verify the import error path.
 15. Attempt a duplicate asset workflow and decide replace/keep-both behavior for a future bridge.
 16. Verify Studio undo restores the previous hierarchy after helper import.
 
 ## Future Improvements
 
 - Add duplicate handling options: replace, keep both, or skip.
-- Add metadata sidecars for stable asset IDs and intended parent paths.
 - Add more roots, such as `StarterPlayer`, `ServerStorage`, and `StarterPack`.
 - Add automated Luau checks once a Roblox/Luau toolchain is chosen for this repo.

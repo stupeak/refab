@@ -15,16 +15,16 @@ function Checkbox.create(initialChecked: boolean): CheckboxHandle
 
 	local root = Instance.new("TextButton")
 	root.Name = "Checkbox"
-	root.Size = UDim2.new(0, 22, 0, 22)
+	root.Size = UDim2.new(0, 18, 0, 18)
 	root.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	root.BorderColor3 = Color3.fromRGB(135, 135, 135)
-	root.TextColor3 = Color3.fromRGB(30, 30, 30)
-	root.TextSize = 16
+	root.TextColor3 = Color3.fromRGB(20, 120, 70)
+	root.TextSize = 14
 	root.Font = Enum.Font.SourceSansBold
 	root.AutoButtonColor = true
 
 	local function render()
-		root.Text = if checked then "X" else ""
+		root.Text = if checked then "✓" else ""
 	end
 
 	root.MouseButton1Click:Connect(function()

@@ -26,7 +26,12 @@ It owns local filesystem operations that Roblox Studio plugins cannot perform:
 - scan `assets/**/*.rbxm`
 - read `.rbxm` bytes
 - write `.rbxm` bytes
-- update `.refab/manifest.json`
+
+Asset identity comes from the file path:
+
+```text
+assets/<RobloxService>/<Folders>/<AssetName>.rbxm
+```
 
 The Studio plugin owns Roblox Instance operations:
 

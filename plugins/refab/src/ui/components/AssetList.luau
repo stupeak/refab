@@ -34,16 +34,6 @@ local function statusBackground(status: AssetDefinition.AssetStatus): Color3
 	return Color3.fromRGB(248, 248, 248)
 end
 
-local function secondaryText(asset: AssetDefinition.AssetDefinition): string
-	if asset.assetPath == "" then
-		return asset.message or ""
-	end
-	if asset.status == "Error" or asset.status == "Warning" then
-		return asset.message or displayPath(asset)
-	end
-	return displayPath(asset)
-end
-
 local function displayPath(asset: AssetDefinition.AssetDefinition): string
 	local path = asset.assetPath
 	if path == "" then
@@ -53,6 +43,16 @@ local function displayPath(asset: AssetDefinition.AssetDefinition): string
 		path = "assets/" .. path
 	end
 	return path
+end
+
+local function secondaryText(asset: AssetDefinition.AssetDefinition): string
+	if asset.assetPath == "" then
+		return asset.message or ""
+	end
+	if asset.status == "Error" or asset.status == "Warning" then
+		return asset.message or displayPath(asset)
+	end
+	return displayPath(asset)
 end
 
 local function splitPath(path: string): {string}
@@ -70,6 +70,40 @@ type TreeNode = {
 	childNames: {string},
 	assets: {AssetDefinition.AssetDefinition},
 }
+
+local function collectNodeAssets(node: TreeNode, output: {AssetDefinition.AssetDefinition})
+	for _, asset in node.assets do
+		table.insert(output, asset)
+	end
+	for _, childName in node.childNames do
+		collectNodeAssets(node.children[childName], output)
+	end
+end
+
+local function selectableAssets(assets: {AssetDefinition.AssetDefinition}): {AssetDefinition.AssetDefinition}
+	local selectable = {}
+	for _, asset in assets do
+		if asset.status ~= "Error" then
+			table.insert(selectable, asset)
+		end
+	end
+	return selectable
+end
+
+local function allSelected(assets: {AssetDefinition.AssetDefinition}): boolean
+	local selectable = selectableAssets(assets)
+	if #selectable == 0 then
+		return false
+	end
+
+	for _, asset in selectable do
+		if not asset.selected then
+			return false
+		end
+	end
+
+	return true
+end
 
 local function statusRank(status: AssetDefinition.AssetStatus): number
 	if status == "Error" then
@@ -103,10 +137,10 @@ function AssetList.create(emptyMessage: string?): Handle
 
 	local root = Instance.new("ScrollingFrame")
 	root.Name = "AssetList"
-	root.Size = UDim2.new(1, 0, 1, -96)
+	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	root.BorderColor3 = Color3.fromRGB(205, 205, 205)
-	root.BorderSizePixel = 1
+	root.BorderSizePixel = 0
 	root.ScrollBarThickness = 8
 	root.CanvasSize = UDim2.new()
 	root.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -144,7 +178,7 @@ function AssetList.create(emptyMessage: string?): Handle
 		label.Parent = root
 	end
 
-	local function addFolderRow(name: string, path: string, index: number, depth: number, folderStatus: AssetDefinition.AssetStatus, render: () -> ())
+	local function addFolderRow(name: string, path: string, index: number, depth: number, folderStatus: AssetDefinition.AssetStatus, nodeAssets: {AssetDefinition.AssetDefinition}, render: () -> ())
 		local header = Instance.new("TextButton")
 		header.Name = "TreeFolder"
 		header.LayoutOrder = index
@@ -165,9 +199,19 @@ function AssetList.create(emptyMessage: string?): Handle
 		stripe.BorderSizePixel = 0
 		stripe.Parent = header
 
+		local checkbox = Checkbox.create(allSelected(nodeAssets))
+		checkbox.root.Position = UDim2.new(0, 10 + indent, 0.5, -9)
+		checkbox.root.Parent = header
+		checkbox.onChanged:Connect(function(checked: boolean)
+			for _, asset in selectableAssets(nodeAssets) do
+				asset.selected = checked
+			end
+			render()
+		end)
+
 		local arrow = Instance.new("TextLabel")
 		arrow.Name = "Arrow"
-		arrow.Position = UDim2.new(0, 10 + indent, 0, 0)
+		arrow.Position = UDim2.new(0, 34 + indent, 0, 0)
 		arrow.Size = UDim2.new(0, 16, 1, 0)
 		arrow.BackgroundTransparency = 1
 		arrow.Text = if collapsed[path] then ">" else "v"
@@ -179,8 +223,8 @@ function AssetList.create(emptyMessage: string?): Handle
 
 		local label = Instance.new("TextLabel")
 		label.Name = "FolderName"
-		label.Position = UDim2.new(0, 26 + indent, 0, 0)
-		label.Size = UDim2.new(1, -112 - indent, 1, 0)
+		label.Position = UDim2.new(0, 50 + indent, 0, 0)
+		label.Size = UDim2.new(1, -136 - indent, 1, 0)
 		label.BackgroundTransparency = 1
 		label.Text = name
 		header.TextXAlignment = Enum.TextXAlignment.Left
@@ -210,14 +254,16 @@ function AssetList.create(emptyMessage: string?): Handle
 		end)
 	end
 
-	local function addRow(asset: AssetDefinition.AssetDefinition, index: number, depth: number)
-		local row = Instance.new("Frame")
+	local function addRow(asset: AssetDefinition.AssetDefinition, index: number, depth: number, render: () -> ())
+		local row = Instance.new("TextButton")
 		row.Name = "AssetRow"
 		row.LayoutOrder = index
 		row.Size = UDim2.new(1, -16, 0, 44)
 		row.BackgroundColor3 = statusBackground(asset.status)
 		row.BorderColor3 = statusColor(asset.status)
 		row.BorderSizePixel = 1
+		row.AutoButtonColor = true
+		row.Text = ""
 		row.Parent = root
 
 		local stripe = Instance.new("Frame")
@@ -233,10 +279,17 @@ function AssetList.create(emptyMessage: string?): Handle
 
 		local checkbox = Checkbox.create(asset.selected)
 		local indent = math.min(depth, 5) * 14
-		checkbox.root.Position = UDim2.new(0, 10 + indent, 0, 11)
+		checkbox.root.Position = UDim2.new(0, 10 + indent, 0, 13)
 		checkbox.root.Parent = row
 		checkbox.onChanged:Connect(function(checked: boolean)
 			asset.selected = checked
+			render()
+		end)
+
+		row.MouseButton1Click:Connect(function()
+			asset.selected = not asset.selected
+			checkbox.setChecked(asset.selected)
+			render()
 		end)
 
 		local title = Instance.new("TextLabel")
@@ -359,7 +412,9 @@ function AssetList.create(emptyMessage: string?): Handle
 	local function renderNode(node: TreeNode, depth: number, order: number): number
 		if node.path ~= "" then
 			order += 1
-			addFolderRow(node.name, node.path, order, depth, nodeStatus(node), function()
+			local assetsInNode = {}
+			collectNodeAssets(node, assetsInNode)
+			addFolderRow(node.name, node.path, order, depth, nodeStatus(node), assetsInNode, function()
 				if renderImpl then
 					renderImpl()
 				end
@@ -376,7 +431,11 @@ function AssetList.create(emptyMessage: string?): Handle
 
 		for _, asset in node.assets do
 			order += 1
-			addRow(asset, order, depth)
+			addRow(asset, order, depth, function()
+				if renderImpl then
+					renderImpl()
+				end
+			end)
 		end
 
 		return order

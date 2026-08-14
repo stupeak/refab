@@ -8,6 +8,8 @@ local ImportView = {}
 
 export type Handle = {
 	root: Frame,
+	refresh: () -> (),
+	reset: () -> (),
 }
 
 local function createToolbarButton(text: string): TextButton
@@ -19,32 +21,46 @@ local function createToolbarButton(text: string): TextButton
 	return button
 end
 
-function ImportView.create(importService: any, setStatus: (string, boolean?) -> ()): Handle
+local function countAssets(assets: {AssetDefinition.AssetDefinition}): (number, number)
+	local newCount = 0
+	local changedCount = 0
+	for _, asset in assets do
+		if asset.status == "New" then
+			newCount += 1
+		elseif asset.status == "Changed" then
+			changedCount += 1
+		end
+	end
+	return newCount, changedCount
+end
+
+function ImportView.create(importService: any, setStatus: (string, boolean?) -> (), onCountsChanged: ((number, number) -> ())?): Handle
 	local assets: {AssetDefinition.AssetDefinition} = {}
-	local sourceMode: "Helper" | "Files" = "Helper"
 
 	local root = Instance.new("Frame")
 	root.Name = "ImportView"
 	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundTransparency = 1
 
-	local list = AssetList.create("No local changes to apply.")
-	list.root.Position = UDim2.new(0, 0, 0, 0)
-	list.root.Parent = root
+	local panel = Instance.new("Frame")
+	panel.Name = "AssetPanel"
+	panel.Size = UDim2.new(1, 0, 1, -54)
+	panel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	panel.BorderColor3 = Color3.fromRGB(205, 205, 205)
+	panel.BorderSizePixel = 1
+	panel.Parent = root
 
-	local controls = Instance.new("Frame")
-	controls.Name = "Controls"
-	controls.AnchorPoint = Vector2.new(0, 1)
-	controls.Position = UDim2.new(0, 0, 1, 0)
-	controls.Size = UDim2.new(1, 0, 0, 88)
-	controls.BackgroundTransparency = 1
-	controls.Parent = root
+	local list = AssetList.create("No local changes to apply.")
+	list.root.Position = UDim2.new(0, 0, 0, 42)
+	list.root.Size = UDim2.new(1, 0, 1, -42)
+	list.root.Parent = panel
 
 	local row = Instance.new("Frame")
 	row.Name = "BulkActions"
-	row.Size = UDim2.new(1, 0, 0, 28)
+	row.Position = UDim2.new(0, 8, 0, 8)
+	row.Size = UDim2.new(1, -16, 0, 28)
 	row.BackgroundTransparency = 1
-	row.Parent = controls
+	row.Parent = panel
 
 	local rowLayout = Instance.new("UIListLayout")
 	rowLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -53,24 +69,21 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	rowLayout.Parent = row
 
 	local refreshHelperButton = createToolbarButton("Refresh")
-	refreshHelperButton.Size = UDim2.new(0.34, -5, 0, 26)
+	refreshHelperButton.Size = UDim2.new(0.5, -4, 0, 26)
 	refreshHelperButton.Parent = row
 
-	local chooseFilesButton = createToolbarButton("Open")
-	chooseFilesButton.Size = UDim2.new(0.22, -5, 0, 26)
-	chooseFilesButton.Parent = row
-
 	local selectAllButton = createToolbarButton("All")
-	selectAllButton.Size = UDim2.new(0.22, -5, 0, 26)
+	selectAllButton.Size = UDim2.new(0.25, -4, 0, 26)
 	selectAllButton.Parent = row
 
 	local deselectAllButton = createToolbarButton("None")
-	deselectAllButton.Size = UDim2.new(0.22, -5, 0, 26)
+	deselectAllButton.Size = UDim2.new(0.25, -4, 0, 26)
 	deselectAllButton.Parent = row
 
 	local importButton = Button.create({ text = "APPLY TO ROBLOX", height = 42, accent = true })
-	importButton.Position = UDim2.new(0, 0, 0, 38)
-	importButton.Parent = controls
+	importButton.AnchorPoint = Vector2.new(0, 1)
+	importButton.Position = UDim2.new(0, 0, 1, 0)
+	importButton.Parent = root
 
 	local modal = Instance.new("Frame")
 	modal.Name = "ConfirmChangedModal"
@@ -140,6 +153,9 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 
 	local function render()
 		list.render(assets)
+		if onCountsChanged then
+			onCountsChanged(countAssets(assets))
+		end
 	end
 
 	local function getStagedChangedAssets(): {AssetDefinition.AssetDefinition}
@@ -153,9 +169,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	end
 
 	local function applySelected()
-		local result = if sourceMode == "Helper"
-			then importService:importSelectedFromHelper(assets)
-			else importService:importSelected(assets)
+		local result = importService:importSelectedFromHelper(assets)
 		setStatus(result.message, not result.ok)
 	end
 
@@ -175,27 +189,15 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	local function refreshHelper()
 		local loadedAssets, message = importService:listHelperAssets()
 		assets = loadedAssets
-		sourceMode = "Helper"
 		if #assets == 0 then
-			setStatus(message or "No local changes to apply.", message ~= "No local changes to apply.")
-		else
-			setStatus("Found " .. tostring(#assets) .. " local change(s).")
+			if message and message ~= "No local changes to apply." then
+				setStatus(message, true)
+			end
 		end
 		render()
 	end
 
 	refreshHelperButton.MouseButton1Click:Connect(refreshHelper)
-
-	chooseFilesButton.MouseButton1Click:Connect(function()
-		assets = importService:promptForFiles()
-		sourceMode = "Files"
-		if #assets == 0 then
-			setStatus("No package files selected.", true)
-		else
-			setStatus("Loaded " .. tostring(#assets) .. " package file(s).")
-		end
-		render()
-	end)
 
 	selectAllButton.MouseButton1Click:Connect(function()
 		for _, asset in assets do
@@ -222,7 +224,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	end)
 
 	importButton.MouseButton1Click:Connect(function()
-		local changedAssets = if sourceMode == "Helper" then getStagedChangedAssets() else {}
+		local changedAssets = getStagedChangedAssets()
 		if #changedAssets > 0 then
 			showChangedConfirm(changedAssets)
 			return
@@ -230,10 +232,16 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 		applySelected()
 	end)
 
-	refreshHelper()
+	local function reset()
+		assets = {}
+		modal.Visible = false
+		render()
+	end
 
 	return {
 		root = root,
+		refresh = refreshHelper,
+		reset = reset,
 	}
 end
 
