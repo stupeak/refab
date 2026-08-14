@@ -58,6 +58,9 @@ jobs:
       - name: Authenticate Rokit
         run: rokit authenticate github --token "${{ github.token }}"
 
+      - name: Trust Rojo
+        run: rokit add rojo-rbx/rojo@7.7.0
+
       - name: Install tools
         run: rokit install
 
