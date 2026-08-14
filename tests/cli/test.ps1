@@ -29,6 +29,7 @@ cargo run --quiet --manifest-path cli/Cargo.toml -- -V
 cargo run --quiet --manifest-path cli/Cargo.toml -- version
 
 Step "CLI help"
+cargo run --quiet --manifest-path cli/Cargo.toml --
 cargo run --quiet --manifest-path cli/Cargo.toml -- help
 
 Step "CLI project status"

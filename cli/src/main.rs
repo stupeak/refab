@@ -21,7 +21,10 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let command = env::args().nth(1).unwrap_or_else(|| "run".to_owned());
+    let Some(command) = env::args().nth(1) else {
+        print_usage();
+        return Ok(());
+    };
 
     match command.as_str() {
         "--version" | "-V" | "version" => {
@@ -56,8 +59,22 @@ fn run() -> Result<()> {
 }
 
 fn print_usage() {
-    println!("refab {CLI_VERSION}");
-    println!("usage: refab run|status|scan|version|stop");
+    println!("Refab {CLI_VERSION}");
+    println!("Asset workflow helper for Roblox projects");
+    println!();
+    println!("Usage: refab [OPTIONS] [COMMAND]");
+    println!();
+    println!("Commands:");
+    println!("  run      Starts the local helper server");
+    println!("  stop     Stops the local helper server");
+    println!("  status   Prints helper project status as JSON");
+    println!("  scan     Lists local assets as JSON");
+    println!("  version  Prints the Refab CLI version");
+    println!("  help     Prints this message");
+    println!();
+    println!("Options:");
+    println!("  -h, --help     Print help");
+    println!("  -V, --version  Print version");
 }
 
 fn stop_helper() -> Result<()> {
