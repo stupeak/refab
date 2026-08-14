@@ -5,7 +5,7 @@ Rust local filesystem helper for the Refab Roblox Studio plugin.
 Run from the repository root:
 
 ```powershell
-cargo run --manifest-path cli/Cargo.toml -- serve
+cargo run --manifest-path cli/Cargo.toml -- run
 ```
 
 Useful checks:
@@ -13,6 +13,8 @@ Useful checks:
 ```powershell
 cargo run --manifest-path cli/Cargo.toml -- status
 cargo run --manifest-path cli/Cargo.toml -- scan
+cargo run --manifest-path cli/Cargo.toml -- --version
+cargo run --manifest-path cli/Cargo.toml -- stop
 ```
 
 The helper listens on:

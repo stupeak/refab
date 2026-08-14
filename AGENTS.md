@@ -30,7 +30,7 @@ rojo build plugins/refab/plugin.project.json --plugin Refab.rbxm
 Run the helper:
 
 ```powershell
-cargo run --manifest-path cli/Cargo.toml -- serve
+cargo run --manifest-path cli/Cargo.toml -- run
 ```
 
 Check helper state:
@@ -38,6 +38,21 @@ Check helper state:
 ```powershell
 cargo run --manifest-path cli/Cargo.toml -- status
 cargo run --manifest-path cli/Cargo.toml -- scan
+cargo run --manifest-path cli/Cargo.toml -- --version
+cargo run --manifest-path cli/Cargo.toml -- stop
+```
+
+Run the full local verification suite:
+
+```powershell
+.\tests\run-all.ps1
+```
+
+Run focused suites:
+
+```powershell
+.\tests\cli\test.ps1
+.\tests\plugin\build.ps1
 ```
 
 ## Responsibilities

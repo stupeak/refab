@@ -2,6 +2,7 @@ use crate::{
     app::App,
     assets::{AssetState, AssetSummary, CompareAssetRequest, WriteAssetRequest},
     paths::{asset_name, infer_target, sha256_hex, slash, CanonicalizeOrIntended, ASSETS_DIR},
+    version::{CLI_VERSION, PROTOCOL_VERSION},
 };
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose, Engine as _};
@@ -9,13 +10,17 @@ use std::{env, fs};
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 use url::Url;
 
-const DEFAULT_PORT: u16 = 34874;
+pub const DEFAULT_PORT: u16 = 34874;
 
-pub fn serve(app: App) -> Result<()> {
-    let port = env::var("REFAB_PORT")
+pub fn helper_port() -> u16 {
+    env::var("REFAB_PORT")
         .ok()
         .and_then(|value| value.parse::<u16>().ok())
-        .unwrap_or(DEFAULT_PORT);
+        .unwrap_or(DEFAULT_PORT)
+}
+
+pub fn run_helper(app: App) -> Result<()> {
+    let port = helper_port();
     let address = format!("127.0.0.1:{port}");
     let server = Server::http(&address).map_err(|error| anyhow!("{error}"))?;
 
@@ -24,8 +29,10 @@ pub fn serve(app: App) -> Result<()> {
     println!("Assets root:  {}", app.assets_root.display());
 
     for request in server.incoming_requests() {
-        if let Err(error) = handle_request(&app, request) {
-            eprintln!("request error: {error:#}");
+        match handle_request(&app, request) {
+            Ok(should_stop) if should_stop => break,
+            Ok(_) => {}
+            Err(error) => eprintln!("request error: {error:#}"),
         }
     }
 
@@ -35,16 +42,19 @@ pub fn serve(app: App) -> Result<()> {
 pub fn status_payload(app: &App) -> Result<serde_json::Value> {
     Ok(serde_json::json!({
         "ok": true,
+        "cliVersion": CLI_VERSION,
+        "protocolVersion": PROTOCOL_VERSION,
         "projectRoot": slash(&app.project_root),
         "assetsRoot": slash(&app.assets_root),
         "assetCount": app.scan_assets()?.len(),
     }))
 }
 
-fn handle_request(app: &App, mut request: Request) -> Result<()> {
+fn handle_request(app: &App, mut request: Request) -> Result<bool> {
     let method = request.method().clone();
     let url = Url::parse(&format!("http://localhost{}", request.url()))?;
     let path = url.path().to_owned();
+    let mut should_stop = false;
 
     let result = match (method, path.as_str()) {
         (Method::Get, "/status") => status_payload(app),
@@ -59,6 +69,13 @@ fn handle_request(app: &App, mut request: Request) -> Result<()> {
             "ok": true,
             "assets": app.scan_assets()?,
         })),
+        (Method::Post, "/shutdown") => {
+            should_stop = true;
+            Ok(serde_json::json!({
+                "ok": true,
+                "message": "Refab helper stopped",
+            }))
+        }
         _ => Ok(serde_json::json!({
             "ok": false,
             "message": format!("Unknown route: {} {}", request.method(), url.path()),
@@ -66,7 +83,7 @@ fn handle_request(app: &App, mut request: Request) -> Result<()> {
     };
 
     match result {
-        Ok(payload) => respond_json(request, 200, payload),
+        Ok(payload) => respond_json(request, 200, payload)?,
         Err(error) => respond_json(
             request,
             500,
@@ -74,8 +91,10 @@ fn handle_request(app: &App, mut request: Request) -> Result<()> {
                 "ok": false,
                 "message": error.to_string(),
             }),
-        ),
-    }
+        )?,
+    };
+
+    Ok(should_stop)
 }
 
 fn handle_read_asset(app: &App, url: &Url) -> Result<serde_json::Value> {

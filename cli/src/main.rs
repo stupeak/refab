@@ -1,13 +1,17 @@
 use anyhow::{anyhow, Result};
 use std::env;
+use std::io::{Read, Write};
+use std::net::TcpStream;
 
 mod app;
 mod assets;
 mod paths;
 mod server;
+mod version;
 
 use app::App;
-use server::{serve, status_payload};
+use server::{helper_port, run_helper, status_payload};
+use version::CLI_VERSION;
 
 fn main() {
     if let Err(error) = run() {
@@ -17,20 +21,60 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let command = env::args().nth(1).unwrap_or_else(|| "serve".to_owned());
+    let command = env::args().nth(1).unwrap_or_else(|| "run".to_owned());
+
+    match command.as_str() {
+        "--version" | "-V" | "version" => {
+            println!("refab {CLI_VERSION}");
+            return Ok(());
+        }
+        "--help" | "-h" | "help" => {
+            print_usage();
+            return Ok(());
+        }
+        "stop" => {
+            stop_helper()?;
+            return Ok(());
+        }
+        _ => {}
+    }
+
     let app = App::discover(env::current_dir()?)?;
     app.ensure_project_folders()?;
 
     match command.as_str() {
-        "serve" => serve(app),
+        "run" | "serve" => run_helper(app),
         "status" => print_json(&status_payload(&app)?),
         "scan" => print_json(&serde_json::json!({
             "ok": true,
             "assets": app.scan_assets()?,
         })),
         _ => Err(anyhow!(
-            "unknown command: {command}\nusage: refab serve|status|scan"
+            "unknown command: {command}\nusage: refab run|status|scan|version|stop"
         )),
+    }
+}
+
+fn print_usage() {
+    println!("refab {CLI_VERSION}");
+    println!("usage: refab run|status|scan|version|stop");
+}
+
+fn stop_helper() -> Result<()> {
+    let port = helper_port();
+    let mut stream = TcpStream::connect(("127.0.0.1", port))
+        .map_err(|_| anyhow!("Refab helper is not running on 127.0.0.1:{port}"))?;
+    stream.write_all(
+        b"POST /shutdown HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    )?;
+
+    let mut response = String::new();
+    stream.read_to_string(&mut response)?;
+    if response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200") {
+        println!("Refab helper stopped");
+        Ok(())
+    } else {
+        Err(anyhow!("Refab helper refused to stop"))
     }
 }
 

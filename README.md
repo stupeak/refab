@@ -72,13 +72,13 @@ Refab uses a small local helper for filesystem access.
 Run it from your Roblox project root:
 
 ```powershell
-refab serve
+refab run
 ```
 
 During development, you can also run it with Cargo:
 
 ```powershell
-cargo run --manifest-path cli/Cargo.toml -- serve
+cargo run --manifest-path cli/Cargo.toml -- run
 ```
 
 The plugin connects to:
@@ -116,7 +116,7 @@ Copy `Refab.rbxm` into your Roblox local plugins folder:
 Put `refab.exe` somewhere on your `PATH`, then run:
 
 ```powershell
-refab serve
+refab run
 ```
 
 Restart Roblox Studio after installing or updating the plugin.
