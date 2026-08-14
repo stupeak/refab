@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "assetsRoot": "assets",
+  "assets": {
+    "06d1867a-3e90-4ff5-9b2b-a1bc2d0a31a4": {
+      "id": "06d1867a-3e90-4ff5-9b2b-a1bc2d0a31a4",
+      "name": "Rewards",
+      "source": "assets/Workspace/Rewards.rbxm",
+      "target": "Workspace.Rewards",
+      "className": "rbxm",
+      "sourceHash": "4c2617968ea6e57931b1d995206ec61a88ea9b5463ba153da412306a8698044c",
+      "size": 15513,
+      "lastScannedAt": "2026-08-14T15:22:50.701762900+00:00"
+    },
+    "2d43510e-6c00-4795-b2a5-e6972a00796c": {
+      "id": "2d43510e-6c00-4795-b2a5-e6972a00796c",
+      "name": "CurrencyUI",
+      "source": "assets/StarterGui/CurrencyUI.rbxm",
+      "target": "StarterGui.CurrencyUI",
+      "className": "rbxm",
+      "sourceHash": "60a750233e6394a17e2d309a473e9276e371fd3a71d629d35f37591a7672ed14",
+      "size": 10316,
+      "lastScannedAt": "2026-08-14T15:22:50.698558500+00:00"
+    },
+    "4bbc048f-9b15-4c52-9451-023ddc2d6b5c": {
+      "id": "4bbc048f-9b15-4c52-9451-023ddc2d6b5c",
+      "name": "Ui Pack Version 5 By Zxgly",
+      "source": "assets/StarterGui/Ui Pack Version 5 By Zxgly.rbxm",
+      "target": "StarterGui.Ui Pack Version 5 By Zxgly",
+      "className": "rbxm",
+      "sourceHash": "a73e05578589289a54abad5a936e5ae08e1538f5b4c43efee9feca324b076d17",
+      "size": 38615,
+      "lastScannedAt": "2026-08-14T15:22:50.700394300+00:00"
+    }
+  }
+}

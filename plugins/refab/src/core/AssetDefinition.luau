@@ -1,6 +1,6 @@
 --!strict
 
-export type AssetStatus = "Ready" | "Warning" | "Error"
+export type AssetStatus = "Ready" | "New" | "Changed" | "Warning" | "Error"
 
 export type AssetDefinition = {
 	id: string,

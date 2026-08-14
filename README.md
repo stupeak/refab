@@ -9,6 +9,7 @@ The intended split is:
 
 - Rojo: `src/client`, `src/server`, `src/shared`
 - Refab: `assets/Workspace`, `assets/StarterGui`, `assets/ReplicatedStorage`
+- Refab helper: local filesystem access and `.refab/manifest.json`
 - Git: version control for both code and asset artifacts
 
 ## Project Structure
@@ -20,6 +21,12 @@ src/
   shared/
 assets/
   ...
+.refab/
+  manifest.json
+cli/
+  refab/
+    Cargo.toml
+    src/main.rs
 plugins/
   refab/
     plugin.project.json
@@ -55,8 +62,8 @@ For a plain artifact in this repository instead, run:
 rojo build plugins/refab/plugin.project.json -o Refab.rbxm
 ```
 
-Refab does not need `rojo serve` for V1 testing. Build the plugin, open Studio,
-then enable Refab from the Plugins tab.
+Refab itself does not use `rojo serve`. Build the plugin, open Studio, then
+enable Refab from the Plugins tab.
 
 On Windows, the local plugin folder is usually:
 
@@ -77,6 +84,31 @@ Do not serve `plugins/refab/plugin.project.json`. It is intentionally a
 model/plugin artifact, not a place, so the Rojo Studio plugin will reject it
 with "Cannot sync a model as a place."
 
+## Helper CLI
+
+Run the helper from the repository root when you want Refab to read/write local
+`.rbxm` files without Studio save dialogs:
+
+```powershell
+cargo run --manifest-path cli/Cargo.toml -- serve
+```
+
+Useful diagnostics:
+
+```powershell
+cargo run --manifest-path cli/Cargo.toml -- status
+cargo run --manifest-path cli/Cargo.toml -- scan
+```
+
+The helper listens on:
+
+```text
+http://127.0.0.1:34874
+```
+
+It scans `assets/`, writes `.rbxm` bytes received from the plugin, reads `.rbxm`
+bytes for import, and updates `.refab/manifest.json`.
+
 ## Project Workflow
 
 Refab is an asset workflow layer beside Rojo:
@@ -86,7 +118,7 @@ src/    -> Rojo  -> code/tree sync
 assets/ -> Refab -> managed asset packages
 ```
 
-On first use, set `Project Root` in the Refab panel, for example:
+On first use without the helper, set `Project Root` in the Refab panel, for example:
 
 ```text
 C:/Roblox Projects/my-game
@@ -96,17 +128,20 @@ Refab stores this per place/experience with plugin settings. The `Assets Folder`
 defaults to `assets`.
 
 Roblox Studio plugin APIs do not currently expose a native folder picker for
-arbitrary project roots, so V1 uses a text field for the root path.
+arbitrary project roots. With the helper running, Refab gets the project root
+from `cargo run --manifest-path cli/Cargo.toml -- serve`; the textbox is only a fallback/path
+preview.
 
-V1 still uses Roblox Studio's native save/import dialogs because plugin-only
-Luau cannot silently read/write arbitrary project files. Refab now uses the
-saved project root to show and suggest exact asset paths like:
+With the helper running, Refab can write serialized `.rbxm` bytes directly into
+`assets/` and read local `.rbxm` files for import. Without the helper, Studio
+plugin filesystem access is limited to native prompts.
 
 ```text
 C:/Roblox Projects/my-game/assets/Workspace/World/Boat.rbxm
 ```
 
-Dialog avoidance and folder scanning are V2 bridge/CLI work, not V1.
+The key split is: `SerializationService` gives the plugin `.rbxm` bytes, while
+the helper writes/reads those bytes on disk.
 
 ## Export Workflow
 
@@ -114,8 +149,9 @@ Dialog avoidance and folder scanning are V2 bridge/CLI work, not V1.
 2. Open the Refab toolbar button.
 3. Use the Export tab.
 4. Select or deselect individual assets.
-5. Click `EXPORT SELECTED`.
-6. Save each prompted `.rbxm` file into the matching `assets/...` path.
+5. Run `cargo run --manifest-path cli/Cargo.toml -- serve`.
+6. Click `EXPORT SELECTED`.
+7. Refab serializes the Instance and asks the helper to write the `.rbxm` file.
 
 Refab suggests paths such as:
 
@@ -125,17 +161,19 @@ assets/StarterGui/Inventory.rbxm
 assets/ReplicatedStorage/Items/Sword.rbxm
 ```
 
+Refab identifies an asset by its canonical source path. That path is the folder
+plus file name, for example `assets/Workspace/World/Boat.rbxm`. The display name
+is metadata; it is not a second identity key.
+
 ## Import Workflow
 
-The Import tab can prompt for multiple `.rbxm` or `.rbxmx` files and display
-them for selection. Plugin-only Refab cannot scan `assets/` automatically
-because Roblox Studio plugin APIs do not expose directory listing or arbitrary
-filesystem reads. Native plugin-only import is intentionally guarded because
-current Roblox APIs expose selected local files as `File` objects but do not
-provide a supported API to deserialize arbitrary local `.rbxm` contents into
-live Instances.
+With the helper running, the Import tab loads `assets/**/*.rbxm` from
+`GET /assets`. Importing reads `.rbxm` bytes from the helper, converts them back
+to a Luau `buffer`, and calls `SerializationService:DeserializeInstancesAsync`.
 
-When Roblox adds such an API, or when a local bridge is added, the import service can be extended without rewriting the UI or path resolver.
+The helper-backed path is the intended workflow. `Choose Files` remains as a
+manual fallback, but Roblox only gives the plugin file handles and file names,
+not a project-relative folder scan.
 
 ## Supported Asset Types
 
@@ -175,16 +213,20 @@ The plugin uses current native Studio APIs:
 
 - `Selection:Get()` to read Explorer selection.
 - `Plugin:CreateDockWidgetPluginGuiAsync()` for the docked UI.
-- `Plugin:PromptSaveSelectionAsync()` to save selected Instances as `.rbxm`.
-- `StudioService:PromptImportFilesAsync()` to prompt for local files.
+- `SerializationService:SerializeInstancesAsync()` to serialize selected
+  Instances as `.rbxm` bytes.
+- `SerializationService:DeserializeInstancesAsync()` to deserialize helper-read
+  `.rbxm` bytes into Instances.
+- `HttpService:RequestAsync()` to communicate with the local helper.
 - `ChangeHistoryService:TryBeginRecording()` and `FinishRecording()` around import mutations when importable Instances are available.
 
 Known limitations:
 
-- Roblox plugins cannot silently write arbitrary local filesystem paths. Export uses the official save prompt.
-- The save API accepts a suggested file name, but the user still chooses the final location.
-- `StudioService:PromptImportFilesAsync()` exposes local files to plugins, but official APIs do not expose a native `.rbxm` deserializer for plugin Luau.
-- File picker results do not provide a reliable repository-relative `assets/...` path, so exact hierarchy import needs either user-provided metadata, a naming convention, or a local bridge.
+- Roblox plugins cannot silently write arbitrary local filesystem paths. Refab
+  uses the helper for filesystem writes.
+- Plugin-only folder scanning is not available. Refab uses the helper to scan
+  `assets/`.
+- The helper must be running for no-dialog export/import.
 - `InstanceFileSyncService` reports file sync state for instances already involved in Studio file sync; it is not a general `.rbxm` import/export system.
 
 Official references:
@@ -205,8 +247,8 @@ These require Roblox Studio:
 4. Select All.
 5. Deselect All.
 6. Export a `ScreenGui`.
-7. Attempt import of one `.rbxm` and verify the limitation message.
-8. Attempt import of multiple `.rbxm` files and verify the limitation message.
+7. Run helper import for one `.rbxm` and verify the Instance appears under the mapped root.
+8. Run helper import for multiple `.rbxm` files and verify all selected assets import.
 9. Validate path preview for `Workspace`.
 10. Validate path preview for `StarterGui`.
 11. Validate path preview for `ReplicatedStorage`.
@@ -214,11 +256,10 @@ These require Roblox Studio:
 13. Open export with empty selection and verify the empty-state message.
 14. Select an invalid file and verify the import error path.
 15. Attempt a duplicate asset workflow and decide replace/keep-both behavior for a future bridge.
-16. When actual import insertion is available, verify Studio undo restores the previous hierarchy.
+16. Verify Studio undo restores the previous hierarchy after helper import.
 
 ## Future Improvements
 
-- Add a small local filesystem bridge that can map exact repository paths and decode `.rbxm` safely.
 - Add duplicate handling options: replace, keep both, or skip.
 - Add metadata sidecars for stable asset IDs and intended parent paths.
 - Add more roots, such as `StarterPlayer`, `ServerStorage`, and `StarterPack`.

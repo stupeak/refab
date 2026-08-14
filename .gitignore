@@ -16,7 +16,17 @@
 # Local inspection artifacts
 /*.inspect.rbxmx
 
+# Refab helper runtime files
+/.refab/*.pid
+/.refab/*.log
+/.refab/tmp/
+
 # Tool/cache clutter
 .luau-lsp/
 .vscode/*
 !.vscode/settings.json
+cli/target/
+
+# OS clutter
+.DS_Store
+Thumbs.db

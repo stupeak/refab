@@ -13,6 +13,15 @@ export type Handle = {
 	refresh: () -> (),
 }
 
+local function createToolbarButton(text: string): TextButton
+	local button = Button.create({ text = text, height = 26 })
+	button.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+	button.BorderColor3 = Color3.fromRGB(180, 180, 180)
+	button.TextColor3 = Color3.fromRGB(45, 45, 45)
+	button.TextSize = 14
+	return button
+end
+
 function ExportView.create(exportService: any, setStatus: (string, boolean?) -> ()): Handle
 	local assets: {AssetDefinition.AssetDefinition} = {}
 
@@ -21,7 +30,7 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundTransparency = 1
 
-	local list = AssetList.create("Select Instances in Explorer to preview export assets.")
+	local list = AssetList.create("No staged Roblox changes. Select Instances in Explorer.")
 	list.root.Position = UDim2.new(0, 0, 0, 0)
 	list.root.Parent = root
 
@@ -29,69 +38,142 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 	controls.Name = "Controls"
 	controls.AnchorPoint = Vector2.new(0, 1)
 	controls.Position = UDim2.new(0, 0, 1, 0)
-	controls.Size = UDim2.new(1, 0, 0, 130)
+	controls.Size = UDim2.new(1, 0, 0, 88)
 	controls.BackgroundTransparency = 1
 	controls.Parent = root
 
 	local row = Instance.new("Frame")
 	row.Name = "BulkActions"
-	row.Size = UDim2.new(1, 0, 0, 34)
+	row.Size = UDim2.new(1, 0, 0, 28)
 	row.BackgroundTransparency = 1
 	row.Parent = controls
 
 	local rowLayout = Instance.new("UIListLayout")
 	rowLayout.FillDirection = Enum.FillDirection.Horizontal
-	rowLayout.Padding = UDim.new(0, 8)
+	rowLayout.Padding = UDim.new(0, 6)
 	rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	rowLayout.Parent = row
 
-	local refreshButton = Button.create({ text = "Refresh", height = 32 })
-	refreshButton.Size = UDim2.new(0.34, -6, 0, 32)
+	local refreshButton = createToolbarButton("Rescan")
+	refreshButton.Size = UDim2.new(0.5, -4, 0, 26)
 	refreshButton.Parent = row
 
-	local selectAllButton = Button.create({ text = "Select All", height = 32 })
-	selectAllButton.Size = UDim2.new(0.33, -6, 0, 32)
+	local selectAllButton = createToolbarButton("All")
+	selectAllButton.Size = UDim2.new(0.25, -4, 0, 26)
 	selectAllButton.Parent = row
 
-	local deselectAllButton = Button.create({ text = "Deselect All", height = 32 })
-	deselectAllButton.Size = UDim2.new(0.33, -6, 0, 32)
+	local deselectAllButton = createToolbarButton("None")
+	deselectAllButton.Size = UDim2.new(0.25, -4, 0, 26)
 	deselectAllButton.Parent = row
 
-	local probeRow = Instance.new("Frame")
-	probeRow.Name = "ProbeActions"
-	probeRow.Position = UDim2.new(0, 0, 0, 42)
-	probeRow.Size = UDim2.new(1, 0, 0, 34)
-	probeRow.BackgroundTransparency = 1
-	probeRow.Parent = controls
-
-	local probeRowLayout = Instance.new("UIListLayout")
-	probeRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	probeRowLayout.Padding = UDim.new(0, 8)
-	probeRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	probeRowLayout.Parent = probeRow
-
-	local serializeTestButton = Button.create({ text = "Serialize Test", height = 32 })
-	serializeTestButton.Size = UDim2.new(0.5, -4, 0, 32)
-	serializeTestButton.Parent = probeRow
-
-	local roundtripTestButton = Button.create({ text = "Roundtrip Test", height = 32 })
-	roundtripTestButton.Size = UDim2.new(0.5, -4, 0, 32)
-	roundtripTestButton.Parent = probeRow
-
-	local exportButton = Button.create({ text = "EXPORT SELECTED", height = 42, accent = true })
-	exportButton.Position = UDim2.new(0, 0, 0, 88)
+	local exportButton = Button.create({ text = "SAVE TO LOCAL", height = 42, accent = true })
+	exportButton.Position = UDim2.new(0, 0, 0, 38)
 	exportButton.Parent = controls
+
+	local modal = Instance.new("Frame")
+	modal.Name = "ConfirmChangedModal"
+	modal.Size = UDim2.fromScale(1, 1)
+	modal.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+	modal.BackgroundTransparency = 0.18
+	modal.Visible = false
+	modal.ZIndex = 20
+	modal.Parent = root
+
+	local dialog = Instance.new("Frame")
+	dialog.Name = "Dialog"
+	dialog.AnchorPoint = Vector2.new(0.5, 0.5)
+	dialog.Position = UDim2.fromScale(0.5, 0.5)
+	dialog.Size = UDim2.new(1, -48, 0, 164)
+	dialog.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	dialog.BorderColor3 = Color3.fromRGB(205, 205, 205)
+	dialog.BorderSizePixel = 1
+	dialog.ZIndex = 21
+	dialog.Parent = modal
+
+	local dialogPadding = Instance.new("UIPadding")
+	dialogPadding.PaddingTop = UDim.new(0, 12)
+	dialogPadding.PaddingBottom = UDim.new(0, 12)
+	dialogPadding.PaddingLeft = UDim.new(0, 12)
+	dialogPadding.PaddingRight = UDim.new(0, 12)
+	dialogPadding.Parent = dialog
+
+	local dialogTitle = Instance.new("TextLabel")
+	dialogTitle.Name = "Title"
+	dialogTitle.Size = UDim2.new(1, 0, 0, 24)
+	dialogTitle.BackgroundTransparency = 1
+	dialogTitle.Text = "Overwrite local assets?"
+	dialogTitle.TextXAlignment = Enum.TextXAlignment.Left
+	dialogTitle.TextColor3 = Color3.fromRGB(170, 120, 0)
+	dialogTitle.TextSize = 18
+	dialogTitle.Font = Enum.Font.SourceSansBold
+	dialogTitle.ZIndex = 22
+	dialogTitle.Parent = dialog
+
+	local dialogBody = Instance.new("TextLabel")
+	dialogBody.Name = "Body"
+	dialogBody.Position = UDim2.new(0, 0, 0, 32)
+	dialogBody.Size = UDim2.new(1, 0, 0, 68)
+	dialogBody.BackgroundTransparency = 1
+	dialogBody.Text = ""
+	dialogBody.TextXAlignment = Enum.TextXAlignment.Left
+	dialogBody.TextYAlignment = Enum.TextYAlignment.Top
+	dialogBody.TextWrapped = true
+	dialogBody.TextColor3 = Color3.fromRGB(55, 55, 55)
+	dialogBody.TextSize = 14
+	dialogBody.Font = Enum.Font.SourceSans
+	dialogBody.ZIndex = 22
+	dialogBody.Parent = dialog
+
+	local cancelButton = Button.create({ text = "Cancel", height = 32 })
+	cancelButton.Position = UDim2.new(1, -204, 1, -32)
+	cancelButton.Size = UDim2.new(0, 96, 0, 32)
+	cancelButton.ZIndex = 22
+	cancelButton.Parent = dialog
+
+	local saveAnywayButton = Button.create({ text = "Save Anyway", height = 32, accent = true })
+	saveAnywayButton.Position = UDim2.new(1, -100, 1, -32)
+	saveAnywayButton.Size = UDim2.new(0, 100, 0, 32)
+	saveAnywayButton.ZIndex = 22
+	saveAnywayButton.Parent = dialog
 
 	local function render()
 		list.render(assets)
 	end
 
+	local function getStagedChangedAssets(): {AssetDefinition.AssetDefinition}
+		local changed = {}
+		for _, asset in assets do
+			if asset.selected and asset.status == "Changed" then
+				table.insert(changed, asset)
+			end
+		end
+		return changed
+	end
+
+	local function saveSelected()
+		local result = exportService:exportSelected(assets)
+		setStatus(result.message, not result.ok)
+	end
+
+	local function showChangedConfirm(changedAssets: {AssetDefinition.AssetDefinition})
+		local preview = {}
+		for index, asset in changedAssets do
+			if index > 3 then
+				table.insert(preview, "and " .. tostring(#changedAssets - 3) .. " more")
+				break
+			end
+			table.insert(preview, asset.assetPath)
+		end
+		dialogBody.Text = "Saving changed Roblox assets will overwrite matching local package files.\n\n" .. table.concat(preview, "\n")
+		modal.Visible = true
+	end
+
 	local function refresh()
 		assets = exportService:getSelectionAssets()
 		if #assets == 0 then
-			setStatus("No exportable assets selected.", true)
+			setStatus("No pending selection changes.", true)
 		else
-			setStatus("Loaded " .. tostring(#assets) .. " selected item(s).")
+			setStatus("Found " .. tostring(#assets) .. " selected change(s).")
 		end
 		render()
 	end
@@ -115,35 +197,23 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 		render()
 	end)
 
+	cancelButton.MouseButton1Click:Connect(function()
+		modal.Visible = false
+		setStatus("Save cancelled.")
+	end)
+
+	saveAnywayButton.MouseButton1Click:Connect(function()
+		modal.Visible = false
+		saveSelected()
+	end)
+
 	exportButton.MouseButton1Click:Connect(function()
-		local result = exportService:exportSelected(assets)
-		setStatus(result.message, not result.ok)
-	end)
-
-	serializeTestButton.MouseButton1Click:Connect(function()
-		local result = exportService:probeSerializeSelected(assets)
-		print(
-			"REFAB SERIALIZE TEST",
-			result.valueType,
-			result.byteCount,
-			result.canConvertToString,
-			result.stringByteCount,
-			result.previewHex,
-			result.previewText
-		)
-		setStatus(result.message, not result.ok)
-	end)
-
-	roundtripTestButton.MouseButton1Click:Connect(function()
-		local result = exportService:probeRoundtripSelected(assets)
-		print(
-			"REFAB ROUNDTRIP TEST",
-			result.ok,
-			result.serializedByteCount,
-			result.deserializedCount,
-			result.names
-		)
-		setStatus(result.message, not result.ok)
+		local changedAssets = getStagedChangedAssets()
+		if #changedAssets > 0 then
+			showChangedConfirm(changedAssets)
+			return
+		end
+		saveSelected()
 	end)
 
 	refresh()
