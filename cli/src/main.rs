@@ -5,6 +5,7 @@ use std::net::TcpStream;
 
 use refab::{
     app::App,
+    plugin_installer::install_plugin,
     server::{helper_port, run_helper, status_payload},
     version::CLI_VERSION,
 };
@@ -35,6 +36,12 @@ fn run() -> Result<()> {
             stop_helper()?;
             return Ok(());
         }
+        "install-plugin" => {
+            let path = install_plugin()?;
+            println!("Installed Refab plugin to {}", path.display());
+            println!("Restart Roblox Studio if it is already open.");
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -49,7 +56,7 @@ fn run() -> Result<()> {
             "assets": app.scan_assets()?,
         })),
         _ => Err(anyhow!(
-            "unknown command: {command}\nusage: refab run|status|scan|version|stop"
+            "unknown command: {command}\nusage: refab run|install-plugin|status|scan|version|stop"
         )),
     }
 }
@@ -62,6 +69,8 @@ fn print_usage() {
     println!("Commands:");
     println!("  run      Starts local asset sync");
     println!("  stop     Stops local asset sync");
+    println!("  install-plugin");
+    println!("           Installs or updates the local Roblox Studio plugin");
     println!("  status   Prints project status as JSON");
     println!("  scan     Lists local asset files as JSON");
     println!("  version  Prints the Refab CLI version");

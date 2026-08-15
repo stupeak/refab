@@ -11,6 +11,7 @@ cargo run --manifest-path cli/Cargo.toml -- run
 Useful checks:
 
 ```powershell
+cargo run --manifest-path cli/Cargo.toml -- install-plugin
 cargo run --manifest-path cli/Cargo.toml -- status
 cargo run --manifest-path cli/Cargo.toml -- scan
 cargo run --manifest-path cli/Cargo.toml -- --version

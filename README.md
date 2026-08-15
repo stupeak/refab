@@ -6,6 +6,16 @@ Refab is built for teams that keep Roblox code in Rojo, but still need a clean
 way to manage scene objects, UI, models, and other Studio-built assets outside
 the place file.
 
+## Table Of Contents
+
+- [Workflow](#workflow)
+- [Sync To Roblox](#sync-to-roblox)
+- [Sync To Local](#sync-to-local)
+- [Refab CLI](#refab-cli)
+- [Asset Scope](#asset-scope)
+- [Install](#install)
+- [For Developers](#for-developers)
+
 ## Workflow
 
 Refab uses a simple folder convention:
@@ -143,37 +153,38 @@ Refab is for serialized Studio content under `assets/`, not source folders.
 
 Install the Roblox Studio plugin and the Refab CLI.
 
-### Plugin
+### Rokit
 
-Download `Refab.rbxm` from the latest GitHub release, then copy it into your
-Roblox local plugins folder:
-
-```text
-%LOCALAPPDATA%\Roblox\Plugins
-```
-
-Restart Roblox Studio after installing or updating the plugin.
-
-### CLI
-
-Option 1: download the CLI binary from the latest GitHub release:
-
-- `refab.exe`
-
-Put `refab.exe` somewhere on your `PATH`.
-
-Option 2: install through Rokit by adding Refab to `rokit.toml`:
+Add Refab to `rokit.toml`:
 
 ```toml
 [tools]
-refab = "stupeak/refab@1.1.0"
+refab = "stupeak/refab@1.1.1"
 ```
 
-Then run:
+Then install it:
 
 ```powershell
 rokit install
 ```
+
+Install or update the local Roblox Studio plugin:
+
+```powershell
+refab install-plugin
+```
+
+Restart Roblox Studio after installing or updating the plugin.
+
+### Manual
+
+You can also download release files directly:
+
+- `Refab.rbxm`
+- the Refab CLI archive for your platform
+
+Copy `Refab.rbxm` into your local Roblox plugins folder, then put the CLI binary
+somewhere on your `PATH`.
 
 Start Refab from your Roblox project root:
 
