@@ -39,11 +39,13 @@ function PluginController:start()
 	local exportService = ExportService.new(self._plugin, projectSettings, helperClient)
 	local importService = ImportService.new(helperClient)
 	self._window = MainWindow.new(self._plugin, exportService, importService, projectSettings, helperClient)
-	self._window:setEnabled(false)
+	button:SetActive(self._window:isEnabled())
 
 	button.Click:Connect(function()
 		if self._window then
-			self._window:setEnabled(not self._window:isEnabled())
+			local enabled = not self._window:isEnabled()
+			self._window:setEnabled(enabled)
+			button:SetActive(enabled)
 		end
 	end)
 end

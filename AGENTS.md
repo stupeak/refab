@@ -64,6 +64,11 @@ DataModel mutations.
 
 Refab helper owns local filesystem reads/writes and scanning `assets/**/*.rbxm`.
 
+Refab assets are serialized Studio content, not Rojo source folders. Do not add
+ownership of `src/client`, `src/server`, `src/shared`, controllers, services, or
+Rojo-managed project logic to Refab. Scripts can still exist inside serialized
+asset packages when they are part of the Roblox asset being versioned.
+
 Asset identity is the canonical source path, which is folder plus file name:
 `assets/<RobloxService>/<Folders>/<AssetName>.rbxm`. Do not use a separate
 asset name as another identity key; the path already contains the name. Export

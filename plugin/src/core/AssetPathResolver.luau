@@ -1,13 +1,9 @@
 --!strict
 
 local Settings = require(script.Parent.Parent.config.Settings)
+local AssetScope = require(script.Parent.AssetScope)
 
 local AssetPathResolver = {}
-
-local rootLookup: {[string]: boolean} = {}
-for _, rootName in Settings.SupportedRoots do
-	rootLookup[rootName] = true
-end
 
 local function sanitizeSegment(segment: string): string
 	local cleaned = segment:gsub("[\\/:*?\"<>|]", "_")
@@ -25,7 +21,7 @@ end
 function AssetPathResolver.getSupportedRoot(instance: Instance): Instance?
 	local current: Instance? = instance
 	while current and current ~= game do
-		if rootLookup[current.Name] and current.Parent == game then
+		if AssetScope.isSupportedRootName(current.Name) and current.Parent == game then
 			return current
 		end
 		current = current.Parent
@@ -81,7 +77,7 @@ function AssetPathResolver.fileNameToAssetPath(fileName: string): string
 
 	if not normalized:match("^" .. Settings.AssetsRootFolder .. "/") then
 		local guessedRoot = normalized:match("^([^/]+)/")
-		if guessedRoot and rootLookup[guessedRoot] then
+		if guessedRoot and AssetScope.isSupportedRootName(guessedRoot) then
 			normalized = Settings.AssetsRootFolder .. "/" .. normalized
 		end
 	end
@@ -103,7 +99,7 @@ function AssetPathResolver.assetPathToParent(assetPath: string): (boolean, Insta
 	end
 
 	local rootName = parts[1]
-	if not rootLookup[rootName] then
+	if not AssetScope.isSupportedRootName(rootName) then
 		return false, nil, "Unsupported asset root: " .. rootName
 	end
 

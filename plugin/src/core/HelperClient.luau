@@ -77,7 +77,7 @@ function HelperClient:_request(method: string, path: string, body: any?): (boole
 		return HttpService:JSONDecode(response.Body)
 	end)
 	if not decodeOk then
-		return false, "Invalid helper JSON: " .. tostring(decoded)
+		return false, "Invalid Refab CLI JSON: " .. tostring(decoded)
 	end
 
 	return true, decoded
@@ -104,7 +104,7 @@ function HelperClient:listAssets(): (boolean, {HelperAsset}, string?)
 
 	local assets = result.assets
 	if typeof(assets) ~= "table" then
-		return false, {}, "Helper response did not include assets."
+		return false, {}, "Refab CLI response did not include assets."
 	end
 
 	return true, assets :: {HelperAsset}, nil
@@ -150,7 +150,7 @@ function HelperClient:readAsset(sourcePath: string): (boolean, string?, HelperAs
 	end
 
 	if result.ok ~= true or typeof(result.dataBase64) ~= "string" then
-		return false, nil, nil, result.message or "Helper did not return asset bytes."
+		return false, nil, nil, result.message or "Refab CLI did not return asset bytes."
 	end
 
 	return true, result.dataBase64, result.asset, nil

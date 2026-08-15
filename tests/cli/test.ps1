@@ -53,7 +53,7 @@ try {
     Start-Sleep -Seconds 1
 
     if (-not $process.HasExited) {
-        throw "Refab helper did not stop cleanly."
+        throw "Refab did not stop cleanly."
     }
 }
 finally {

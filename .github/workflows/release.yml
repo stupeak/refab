@@ -198,7 +198,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release-artifacts/* \
-            --verify-tag \
-            --title "Refab $GITHUB_REF_NAME" \
-            --generate-notes
+          notes_file=".release-notes/$GITHUB_REF_NAME.md"
+
+          if [[ -f "$notes_file" ]]; then
+            gh release create "$GITHUB_REF_NAME" release-artifacts/* \
+              --verify-tag \
+              --title "Refab $GITHUB_REF_NAME" \
+              --notes-file "$notes_file"
+          else
+            gh release create "$GITHUB_REF_NAME" release-artifacts/* \
+              --verify-tag \
+              --title "Refab $GITHUB_REF_NAME" \
+              --generate-notes
+          fi

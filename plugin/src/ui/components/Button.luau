@@ -12,8 +12,8 @@ function Button.create(options: ButtonOptions): TextButton
 	local button = Instance.new("TextButton")
 	button.Name = options.text:gsub("%s+", "") .. "Button"
 	button.Size = UDim2.new(1, 0, 0, options.height or 34)
-	button.BackgroundColor3 = if options.accent then Color3.fromRGB(0, 120, 215) else Color3.fromRGB(242, 242, 242)
-	button.BorderColor3 = if options.accent then Color3.fromRGB(0, 100, 185) else Color3.fromRGB(190, 190, 190)
+	button.BackgroundColor3 = if options.accent then Color3.fromRGB(40, 105, 170) else Color3.fromRGB(245, 245, 245)
+	button.BorderColor3 = if options.accent then Color3.fromRGB(28, 82, 138) else Color3.fromRGB(185, 185, 185)
 	button.BorderSizePixel = 1
 	button.Font = Enum.Font.SourceSansSemibold
 	button.Text = options.text
@@ -22,7 +22,7 @@ function Button.create(options: ButtonOptions): TextButton
 	button.AutoButtonColor = true
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 4)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = button
 
 	return button

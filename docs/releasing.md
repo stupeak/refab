@@ -24,8 +24,8 @@ Create and push a semantic version tag:
 ```powershell
 git checkout main
 git pull
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 GitHub Actions then runs:
@@ -36,12 +36,25 @@ tag push
   -> build Roblox plugin
   -> package platform artifacts
   -> create GitHub Release
-  -> generate release notes
+  -> use .release-notes/<tag>.md when present
   -> upload artifacts
 ```
 
 The Git tag is the source of truth for the released version. The workflow does
 not create releases from normal commits to `main`.
+
+## Release Notes
+
+Release notes can be written before tagging:
+
+```text
+.release-notes/
+  v1.1.0.md
+```
+
+When `.release-notes/<tag>.md` exists, the release workflow uses it as the
+GitHub Release body. If the file is missing, the workflow falls back to GitHub's
+generated release notes.
 
 ## Artifacts
 
@@ -67,8 +80,8 @@ To test the release workflow without using a final version, push a prerelease ta
 and delete it after testing:
 
 ```powershell
-git tag v0.1.0-test.1
-git push origin v0.1.0-test.1
+git tag v1.1.0-test.1
+git push origin v1.1.0-test.1
 ```
 
 This still creates a real GitHub Release because it matches `v*`, so use it only

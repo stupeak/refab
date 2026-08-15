@@ -3,7 +3,7 @@ use std::path::Path;
 use refab::paths::{asset_name, infer_target, is_asset_file, normalize_asset_source, slash};
 
 #[test]
-fn normalizes_asset_sources_for_helper_requests() {
+fn normalizes_asset_sources_for_local_requests() {
     assert_eq!(
         slash(normalize_asset_source("assets/Workspace/Rewards").unwrap()),
         "Workspace/Rewards.rbxm"
@@ -29,6 +29,14 @@ fn infers_roblox_target_from_asset_folder_path() {
     assert_eq!(
         infer_target("Workspace\\Rewards.rbxmx"),
         "Workspace.Rewards"
+    );
+    assert_eq!(
+        infer_target("ServerStorage/Drops/RewardChest.rbxm"),
+        "ServerStorage.Drops.RewardChest"
+    );
+    assert_eq!(
+        infer_target("MaterialService/StylizedMetal.rbxm"),
+        "MaterialService.StylizedMetal"
     );
 }
 

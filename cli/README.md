@@ -1,6 +1,6 @@
-# Refab Helper CLI
+# Refab CLI
 
-Rust local filesystem helper for the Refab Roblox Studio plugin.
+Rust CLI for Refab local asset sync.
 
 Run from the repository root:
 
@@ -17,13 +17,13 @@ cargo run --manifest-path cli/Cargo.toml -- --version
 cargo run --manifest-path cli/Cargo.toml -- stop
 ```
 
-The helper listens on:
+The CLI listens on:
 
 ```text
 http://127.0.0.1:34874
 ```
 
-It owns local filesystem operations that Roblox Studio plugins cannot perform:
+It handles local asset operations:
 
 - scan `assets/**/*.rbxm`
 - read `.rbxm` bytes

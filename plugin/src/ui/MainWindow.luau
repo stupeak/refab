@@ -9,12 +9,15 @@ local MainWindow = {}
 MainWindow.__index = MainWindow
 
 export type MainWindow = typeof(setmetatable({} :: {
+	_plugin: Plugin,
 	_widget: DockWidgetPluginGui,
 	_exportView: ExportView.Handle?,
 	_importView: ImportView.Handle?,
 	_content: Frame,
 	_tabs: Frame,
-	_status: TextLabel,
+	_statePanel: Frame,
+	_stateTitle: TextLabel,
+	_stateBody: TextLabel,
 	_exportTab: TextButton,
 	_importTab: TextButton,
 	_helperState: TextLabel,
@@ -26,12 +29,10 @@ export type MainWindow = typeof(setmetatable({} :: {
 	_mode: "Export" | "Import",
 }, MainWindow))
 
-local function createCountBadge(name: string, color: Color3, xOffset: number): TextLabel
+local function createCountBadge(name: string, color: Color3): TextLabel
 	local badge = Instance.new("TextLabel")
 	badge.Name = name
-	badge.AnchorPoint = Vector2.new(1, 0.5)
-	badge.Position = UDim2.new(1, xOffset, 0.5, 0)
-	badge.Size = UDim2.new(0, 22, 0, 16)
+	badge.Size = UDim2.new(0, 18, 0, 16)
 	badge.BackgroundColor3 = color
 	badge.BorderSizePixel = 0
 	badge.Text = "0"
@@ -40,56 +41,114 @@ local function createCountBadge(name: string, color: Color3, xOffset: number): T
 	badge.Font = Enum.Font.SourceSansBold
 	badge.Visible = false
 	badge.Parent = nil
+	badge.AutomaticSize = Enum.AutomaticSize.X
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 6)
+	padding.PaddingRight = UDim.new(0, 6)
+	padding.Parent = badge
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 3)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = badge
 
 	return badge
 end
 
 local function createTab(text: string): TextButton
-	local tab = Button.create({ text = text, height = 28 })
+	local tab = Button.create({ text = "", height = 28 })
 	tab.Size = UDim2.new(0.5, -3, 0, 28)
 	tab.BackgroundColor3 = Color3.fromRGB(222, 222, 222)
 	tab.BorderColor3 = Color3.fromRGB(150, 150, 150)
-	tab.TextXAlignment = Enum.TextXAlignment.Left
-	tab.TextSize = 14
+	tab.Text = ""
 
-	local textPadding = Instance.new("UIPadding")
-	textPadding.PaddingLeft = UDim.new(0, 10)
-	textPadding.PaddingRight = UDim.new(0, 58)
-	textPadding.Parent = tab
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = tab
 
-	local newBadge = createCountBadge("NewCountBadge", Color3.fromRGB(20, 130, 70), -34)
-	newBadge.Parent = tab
+	local tabLabel = Instance.new("TextLabel")
+	tabLabel.Name = "TabLabel"
+	tabLabel.Position = UDim2.new(0, 10, 0, 0)
+	tabLabel.Size = UDim2.new(1, -76, 1, 0)
+	tabLabel.BackgroundTransparency = 1
+	tabLabel.Text = text
+	tabLabel.TextXAlignment = Enum.TextXAlignment.Left
+	tabLabel.TextYAlignment = Enum.TextYAlignment.Center
+	tabLabel.TextColor3 = Color3.fromRGB(35, 35, 35)
+	tabLabel.TextSize = 14
+	tabLabel.Font = Enum.Font.SourceSansSemibold
+	tabLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	tabLabel.Parent = tab
 
-	local changedBadge = createCountBadge("ChangedCountBadge", Color3.fromRGB(170, 120, 0), -8)
-	changedBadge.Parent = tab
+	local badgeGroup = Instance.new("Frame")
+	badgeGroup.Name = "BadgeGroup"
+	badgeGroup.AnchorPoint = Vector2.new(1, 0.5)
+	badgeGroup.Position = UDim2.new(1, -8, 0.5, 0)
+	badgeGroup.Size = UDim2.new(0, 0, 0, 16)
+	badgeGroup.AutomaticSize = Enum.AutomaticSize.X
+	badgeGroup.BackgroundTransparency = 1
+	badgeGroup.Parent = tab
+
+	local badgeLayout = Instance.new("UIListLayout")
+	badgeLayout.FillDirection = Enum.FillDirection.Horizontal
+	badgeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	badgeLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	badgeLayout.Padding = UDim.new(0, 4)
+	badgeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	badgeLayout.Parent = badgeGroup
+
+	local newBadge = createCountBadge("NewCountBadge", Color3.fromRGB(36, 132, 82))
+	newBadge.LayoutOrder = 1
+	newBadge.Parent = badgeGroup
+
+	local changedBadge = createCountBadge("ChangedCountBadge", Color3.fromRGB(180, 128, 24))
+	changedBadge.LayoutOrder = 2
+	changedBadge.Parent = badgeGroup
 
 	return tab
 end
 
 local function setTabCounts(tab: TextButton, newCount: number, changedCount: number)
-	local newBadge = tab:FindFirstChild("NewCountBadge")
+	local badgeGroup = tab:FindFirstChild("BadgeGroup")
+	local newBadge = if badgeGroup then badgeGroup:FindFirstChild("NewCountBadge") else nil
 	if newBadge and newBadge:IsA("TextLabel") then
 		newBadge.Text = tostring(newCount)
 		newBadge.Visible = newCount > 0
 	end
 
-	local changedBadge = tab:FindFirstChild("ChangedCountBadge")
+	local changedBadge = if badgeGroup then badgeGroup:FindFirstChild("ChangedCountBadge") else nil
 	if changedBadge and changedBadge:IsA("TextLabel") then
 		changedBadge.Text = tostring(changedCount)
 		changedBadge.Visible = changedCount > 0
 	end
+
+	local visibleBadgeCount = 0
+	if newCount > 0 then
+		visibleBadgeCount += 1
+	end
+	if changedCount > 0 then
+		visibleBadgeCount += 1
+	end
+
+	local digitCount = math.max(#tostring(newCount), #tostring(changedCount))
+	local estimatedBadgeWidth = if visibleBadgeCount == 0 then 0 else math.max(18, 12 + digitCount * 7)
+	local reservedWidth = visibleBadgeCount * estimatedBadgeWidth + math.max(visibleBadgeCount - 1, 0) * 4 + 20
+	local label = tab:FindFirstChild("TabLabel")
+	if label and label:IsA("TextLabel") then
+		label.Size = UDim2.new(1, -math.max(40, reservedWidth), 1, 0)
+	end
 end
 
 local function setTabSelected(tab: TextButton, selected: boolean)
-	tab.BackgroundColor3 = if selected then Color3.fromRGB(0, 95, 170) else Color3.fromRGB(222, 222, 222)
-	tab.BorderColor3 = if selected then Color3.fromRGB(0, 65, 125) else Color3.fromRGB(150, 150, 150)
+	tab.BackgroundColor3 = if selected then Color3.fromRGB(40, 105, 170) else Color3.fromRGB(232, 232, 232)
+	tab.BorderColor3 = if selected then Color3.fromRGB(28, 82, 138) else Color3.fromRGB(178, 178, 178)
 	tab.BorderSizePixel = if selected then 2 else 1
 	tab.Font = if selected then Enum.Font.SourceSansBold else Enum.Font.SourceSansSemibold
-	tab.TextColor3 = if selected then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(35, 35, 35)
+	local label = tab:FindFirstChild("TabLabel")
+	if label and label:IsA("TextLabel") then
+		label.TextColor3 = if selected then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(35, 35, 35)
+		label.Font = if selected then Enum.Font.SourceSansBold else Enum.Font.SourceSansSemibold
+	end
 
 end
 
@@ -106,10 +165,53 @@ local function createLabel(text: string, size: number?, bold: boolean?): TextLab
 	return label
 end
 
+local function addCorner(parent: GuiObject, radius: number)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = parent
+end
+
+local function formatConnectIssue(rawMessage: string?): string
+	local details = tostring(rawMessage or "")
+	local lowerDetails = string.lower(details)
+
+	local reason = "Refab could not connect to the local CLI."
+	local action = "Run `refab run` from your Roblox project root, then click Connect again."
+
+	if string.find(lowerDetails, "http requests") or string.find(lowerDetails, "httprequests") then
+		reason = "Roblox Studio is blocking local HTTP requests."
+		action = "Enable HTTP Requests in Game Settings, then try Connect again."
+	elseif string.find(lowerDetails, "invalid refab cli json")
+		or string.find(lowerDetails, "can't parse json")
+		or string.find(lowerDetails, "cannot parse json")
+		or string.find(lowerDetails, "http 404")
+		or string.find(lowerDetails, "http 405")
+		or string.find(lowerDetails, "http 500")
+	then
+		reason = "Something else may be running on Refab's local port."
+		action = "Stop the process using port 34874, then start Refab with `refab run`."
+	elseif string.find(lowerDetails, "connection")
+		or string.find(lowerDetails, "connect")
+		or string.find(lowerDetails, "refused")
+		or string.find(lowerDetails, "timed")
+		or string.find(lowerDetails, "failed")
+		or string.find(lowerDetails, "not running")
+	then
+		reason = "Refab CLI does not look like it is running."
+	end
+
+	if details == "" then
+		return reason .. "\n" .. action
+	end
+
+	return reason .. "\n" .. action .. "\n\nDetails: " .. details
+end
+
 function MainWindow.new(plugin: Plugin, exportService: any, importService: any, _projectSettings: any, helperClient: any): MainWindow
+	local savedOpen = plugin:GetSetting(Settings.WindowOpenSetting) == true
 	local widgetInfo = DockWidgetPluginGuiInfo.new(
 		Enum.InitialDockState.Right,
-		false,
+		savedOpen,
 		false,
 		420,
 		640,
@@ -144,6 +246,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 	helperFrame.BorderColor3 = Color3.fromRGB(205, 205, 205)
 	helperFrame.BorderSizePixel = 1
 	helperFrame.Parent = root
+	addCorner(helperFrame, 10)
 
 	local helperPadding = Instance.new("UIPadding")
 	helperPadding.PaddingTop = UDim.new(0, 6)
@@ -179,6 +282,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 	tabs.Position = UDim2.new(0, 0, 0, 66)
 	tabs.Size = UDim2.new(1, 0, 0, 28)
 	tabs.BackgroundTransparency = 1
+	tabs.Visible = false
 	tabs.Parent = root
 
 	local tabLayout = Instance.new("UIListLayout")
@@ -196,32 +300,61 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 	local content = Instance.new("Frame")
 	content.Name = "Content"
 	content.Position = UDim2.new(0, 0, 0, 104)
-	content.Size = UDim2.new(1, 0, 1, -144)
+	content.Size = UDim2.new(1, 0, 1, -104)
 	content.BackgroundTransparency = 1
+	content.Visible = false
 	content.Parent = root
 
-	local status = Instance.new("TextLabel")
-	status.Name = "Status"
-	status.AnchorPoint = Vector2.new(0, 1)
-	status.Position = UDim2.new(0, 0, 1, 0)
-	status.Size = UDim2.new(1, 0, 0, 32)
-	status.BackgroundTransparency = 1
-	status.Text = ""
-	status.TextXAlignment = Enum.TextXAlignment.Left
-	status.TextYAlignment = Enum.TextYAlignment.Center
-	status.TextWrapped = true
-	status.TextColor3 = Color3.fromRGB(85, 85, 85)
-	status.TextSize = 14
-	status.Font = Enum.Font.SourceSans
-	status.Parent = root
+	local statePanel = Instance.new("Frame")
+	statePanel.Name = "StatePanel"
+	statePanel.Position = UDim2.new(0, 0, 0, 104)
+	statePanel.Size = UDim2.new(1, 0, 1, -104)
+	statePanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	statePanel.BorderColor3 = Color3.fromRGB(205, 205, 205)
+	statePanel.BorderSizePixel = 1
+	statePanel.Visible = false
+	statePanel.Parent = root
+	addCorner(statePanel, 10)
+
+	local stateTitle = Instance.new("TextLabel")
+	stateTitle.Name = "Title"
+	stateTitle.AnchorPoint = Vector2.new(0.5, 0.5)
+	stateTitle.Position = UDim2.new(0.5, 0, 0.5, -22)
+	stateTitle.Size = UDim2.new(1, -40, 0, 28)
+	stateTitle.BackgroundTransparency = 1
+	stateTitle.Text = ""
+	stateTitle.TextColor3 = Color3.fromRGB(45, 45, 45)
+	stateTitle.TextSize = 20
+	stateTitle.Font = Enum.Font.SourceSansSemibold
+	stateTitle.TextXAlignment = Enum.TextXAlignment.Center
+	stateTitle.TextTruncate = Enum.TextTruncate.AtEnd
+	stateTitle.Parent = statePanel
+
+	local stateBody = Instance.new("TextLabel")
+	stateBody.Name = "Body"
+	stateBody.AnchorPoint = Vector2.new(0.5, 0.5)
+	stateBody.Position = UDim2.new(0.5, 0, 0.5, 18)
+	stateBody.Size = UDim2.new(1, -48, 0, 60)
+	stateBody.BackgroundTransparency = 1
+	stateBody.Text = ""
+	stateBody.TextColor3 = Color3.fromRGB(90, 90, 90)
+	stateBody.TextSize = 14
+	stateBody.Font = Enum.Font.SourceSans
+	stateBody.TextWrapped = true
+	stateBody.TextXAlignment = Enum.TextXAlignment.Center
+	stateBody.TextYAlignment = Enum.TextYAlignment.Top
+	stateBody.Parent = statePanel
 
 	local self = setmetatable({
+		_plugin = plugin,
 		_widget = widget,
 		_exportView = nil,
 		_importView = nil,
 		_content = content,
 		_tabs = tabs,
-		_status = status,
+		_statePanel = statePanel,
+		_stateTitle = stateTitle,
+		_stateBody = stateBody,
 		_exportTab = exportTab,
 		_importTab = importTab,
 		_helperState = helperState,
@@ -233,17 +366,42 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 		_mode = "Import",
 	}, MainWindow)
 
-	local function setStatus(message: string, isError: boolean?)
-		status.Text = message
-		status.TextColor3 = if isError then Color3.fromRGB(196, 43, 28) else Color3.fromRGB(85, 85, 85)
+	local function showMainUi()
+		tabs.Visible = true
+		content.Visible = true
+		statePanel.Visible = false
 	end
 
-	local function refreshHelper()
+	local function showEmptyState(title: string?, body: string?, issue: boolean?)
+		tabs.Visible = false
+		content.Visible = false
+		if not title or title == "" then
+			statePanel.Visible = false
+			return
+		end
+		statePanel.Visible = true
+		stateTitle.Text = title
+		stateTitle.TextColor3 = if issue then Color3.fromRGB(150, 74, 28) else Color3.fromRGB(45, 45, 45)
+		stateBody.Text = body or ""
+	end
+
+	local function setStatus(message: string, isError: boolean?)
+		if isError then
+			showEmptyState("Needs attention", message, true)
+		end
+	end
+
+	local function refreshHelper(showStatus: boolean?)
+		if showStatus then
+			self._connected = false
+			showEmptyState("Connecting...", "Checking Refab CLI at " .. Settings.HelperBaseUrl, false)
+			connectButton.Text = "Connecting..."
+		end
+
 		local helperStatus = helperClient:getStatus()
 		if helperStatus.ok then
 			self._connected = true
-			tabs.Visible = true
-			content.Visible = true
+			showMainUi()
 			helperState.Text = titleText
 			helperState.TextColor3 = Color3.fromRGB(20, 130, 70)
 			helperProject.Text = "Project: " .. tostring(helperStatus.projectRoot or "-")
@@ -255,9 +413,11 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 			self:setMode(self._mode)
 		else
 			self._connected = false
-			tabs.Visible = false
-			content.Visible = false
-			status.Text = ""
+			if showStatus then
+				showEmptyState("Could not connect", formatConnectIssue(helperStatus.message), true)
+			else
+				showEmptyState(nil, nil, false)
+			end
 			setTabCounts(importTab, 0, 0)
 			setTabCounts(exportTab, 0, 0)
 			if self._importView then
@@ -267,23 +427,28 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 				self._exportView.reset()
 			end
 			helperState.Text = titleText
-			helperState.TextColor3 = Color3.fromRGB(196, 43, 28)
+			helperState.TextColor3 = Color3.fromRGB(150, 74, 28)
 			helperProject.Text = "Project: -"
 			helperAssets.Text = "Offline"
 			connectButton.Text = "Connect"
-			connectButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-			connectButton.BorderColor3 = Color3.fromRGB(0, 100, 185)
+			connectButton.BackgroundColor3 = Color3.fromRGB(40, 105, 170)
+			connectButton.BorderColor3 = Color3.fromRGB(28, 82, 138)
 			connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		end
 	end
 
 	self._refreshHelper = refreshHelper
+	widget:GetPropertyChangedSignal("Enabled"):Connect(function()
+		plugin:SetSetting(Settings.WindowOpenSetting, widget.Enabled)
+		if widget.Enabled then
+			refreshHelper(false)
+		end
+	end)
+
 	connectButton.MouseButton1Click:Connect(function()
 		if self._connected then
 			self._connected = false
-			tabs.Visible = false
-			content.Visible = false
-			status.Text = ""
+			showEmptyState(nil, nil, false)
 			setTabCounts(importTab, 0, 0)
 			setTabCounts(exportTab, 0, 0)
 			if self._importView then
@@ -297,13 +462,13 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 			helperProject.Text = "Project: -"
 			helperAssets.Text = "Disconnected"
 			connectButton.Text = "Connect"
-			connectButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-			connectButton.BorderColor3 = Color3.fromRGB(0, 100, 185)
+			connectButton.BackgroundColor3 = Color3.fromRGB(40, 105, 170)
+			connectButton.BorderColor3 = Color3.fromRGB(28, 82, 138)
 			connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 			return
 		end
 
-		refreshHelper()
+		refreshHelper(true)
 	end)
 
 	self._exportView = ExportView.create(exportService, setStatus, function(newCount: number, changedCount: number)
@@ -324,7 +489,7 @@ function MainWindow.new(plugin: Plugin, exportService: any, importService: any, 
 		self:setMode("Import")
 	end)
 
-	refreshHelper()
+	refreshHelper(false)
 	self:setMode("Import")
 	return self
 end
@@ -351,8 +516,9 @@ end
 
 function MainWindow:setEnabled(enabled: boolean)
 	self._widget.Enabled = enabled
+	self._plugin:SetSetting(Settings.WindowOpenSetting, enabled)
 	if enabled and self._refreshHelper then
-		self._refreshHelper()
+		self._refreshHelper(false)
 	end
 end
 

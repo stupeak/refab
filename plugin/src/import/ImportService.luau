@@ -8,6 +8,7 @@ local AssetRegistry = require(script.Parent.Parent.core.AssetRegistry)
 local Base64 = require(script.Parent.Parent.core.Base64)
 local AssetDefinition = require(script.Parent.Parent.core.AssetDefinition)
 local Settings = require(script.Parent.Parent.config.Settings)
+local AssetScope = require(script.Parent.Parent.core.AssetScope)
 
 export type ImportResult = {
 	ok: boolean,
@@ -31,23 +32,6 @@ local function helperStatusToAssetStatus(status: string?): AssetDefinition.Asset
 		return "Changed"
 	end
 	return "Ready"
-end
-
-local function hasSupportedRoot(assetPath: string): boolean
-	local normalized = assetPath:gsub("\\", "/")
-	normalized = normalized:gsub("^" .. Settings.AssetsRootFolder .. "/", "")
-	local rootName = normalized:match("^([^/]+)/")
-	if not rootName then
-		return false
-	end
-
-	for _, supportedRoot in Settings.SupportedRoots do
-		if rootName == supportedRoot then
-			return true
-		end
-	end
-
-	return false
 end
 
 local function stripExtension(name: string): string
@@ -124,7 +108,7 @@ function ImportService:listHelperAssets(): ({AssetDefinition.AssetDefinition}, s
 		local source = helperAsset.source
 		local parentPath = AssetPathResolver.fileNameToParentPath(source)
 
-		if not hasSupportedRoot(source) then
+		if not AssetScope.isAssetPathInSupportedRoot(source) then
 			table.insert(assets, {
 				id = source,
 				name = helperAsset.name,
@@ -137,7 +121,7 @@ function ImportService:listHelperAssets(): ({AssetDefinition.AssetDefinition}, s
 				managed = false,
 				selected = false,
 				status = "Error",
-				message = "Unsupported asset root. Put the file under assets/Workspace, assets/StarterGui, or assets/ReplicatedStorage.",
+				message = "Unsupported asset root. Put the file under one of: " .. AssetScope.formatSupportedRoots() .. ".",
 				sourceFile = nil,
 			})
 			continue

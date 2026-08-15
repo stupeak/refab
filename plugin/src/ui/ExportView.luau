@@ -170,9 +170,14 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 		return changed
 	end
 
+	local refresh: () -> ()
+
 	local function saveSelected()
 		local result = exportService:exportSelected(assets)
 		setStatus(result.message, not result.ok)
+		if result.ok then
+			refresh()
+		end
 	end
 
 	local function showChangedConfirm(changedAssets: {AssetDefinition.AssetDefinition})
@@ -188,7 +193,7 @@ function ExportView.create(exportService: any, setStatus: (string, boolean?) -> 
 		modal.Visible = true
 	end
 
-	local function refresh()
+	refresh = function()
 		assets = exportService:getSelectionAssets()
 		render()
 	end

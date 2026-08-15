@@ -24,7 +24,7 @@ pub fn run_helper(app: App) -> Result<()> {
     let address = format!("127.0.0.1:{port}");
     let server = Server::http(&address).map_err(|error| anyhow!("{error}"))?;
 
-    println!("Refab helper listening on http://{address}");
+    println!("Refab listening on http://{address}");
     println!("Project root: {}", app.project_root.display());
     println!("Assets root:  {}", app.assets_root.display());
 
@@ -73,7 +73,7 @@ fn handle_request(app: &App, mut request: Request) -> Result<bool> {
             should_stop = true;
             Ok(serde_json::json!({
                 "ok": true,
-                "message": "Refab helper stopped",
+                "message": "Refab stopped",
             }))
         }
         _ => Ok(serde_json::json!({

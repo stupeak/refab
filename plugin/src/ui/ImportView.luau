@@ -80,7 +80,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	deselectAllButton.Size = UDim2.new(0.25, -4, 0, 26)
 	deselectAllButton.Parent = row
 
-	local importButton = Button.create({ text = "APPLY TO ROBLOX", height = 42, accent = true })
+	local importButton = Button.create({ text = "Apply", height = 42, accent = true })
 	importButton.AnchorPoint = Vector2.new(0, 1)
 	importButton.Position = UDim2.new(0, 0, 1, 0)
 	importButton.Parent = root
@@ -168,9 +168,14 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 		return changed
 	end
 
+	local refreshHelper: () -> ()
+
 	local function applySelected()
 		local result = importService:importSelectedFromHelper(assets)
 		setStatus(result.message, not result.ok)
+		if result.ok then
+			refreshHelper()
+		end
 	end
 
 	local function showChangedConfirm(changedAssets: {AssetDefinition.AssetDefinition})
@@ -186,7 +191,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 		modal.Visible = true
 	end
 
-	local function refreshHelper()
+	refreshHelper = function()
 		local loadedAssets, message = importService:listHelperAssets()
 		assets = loadedAssets
 		if #assets == 0 then

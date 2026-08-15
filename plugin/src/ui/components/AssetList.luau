@@ -1,9 +1,15 @@
 --!strict
 
+local StudioService = game:GetService("StudioService")
+
 local Checkbox = require(script.Parent.Checkbox)
 local AssetDefinition = require(script.Parent.Parent.Parent.core.AssetDefinition)
 
 local AssetList = {}
+
+local PRIMARY_TEXT_SIZE = 14
+local SECONDARY_TEXT_SIZE = 12
+local BADGE_TEXT_SIZE = 10
 
 export type Handle = {
 	root: ScrollingFrame,
@@ -12,13 +18,13 @@ export type Handle = {
 
 local function statusColor(status: AssetDefinition.AssetStatus): Color3
 	if status == "Error" then
-		return Color3.fromRGB(196, 43, 28)
+		return Color3.fromRGB(176, 82, 32)
 	elseif status == "New" then
-		return Color3.fromRGB(20, 130, 70)
+		return Color3.fromRGB(36, 132, 82)
 	elseif status == "Changed" then
-		return Color3.fromRGB(170, 120, 0)
+		return Color3.fromRGB(180, 128, 24)
 	elseif status == "Warning" then
-		return Color3.fromRGB(150, 98, 0)
+		return Color3.fromRGB(150, 98, 32)
 	end
 	return Color3.fromRGB(90, 90, 90)
 end
@@ -29,9 +35,9 @@ local function statusBackground(status: AssetDefinition.AssetStatus): Color3
 	elseif status == "Changed" then
 		return Color3.fromRGB(255, 247, 222)
 	elseif status == "Error" then
-		return Color3.fromRGB(255, 236, 232)
+		return Color3.fromRGB(255, 240, 226)
 	end
-	return Color3.fromRGB(248, 248, 248)
+	return Color3.fromRGB(250, 250, 250)
 end
 
 local function displayPath(asset: AssetDefinition.AssetDefinition): string
@@ -61,6 +67,67 @@ local function splitPath(path: string): {string}
 		table.insert(parts, part)
 	end
 	return parts
+end
+
+local function classNameFromFolderPath(path: string): string
+	local serviceName = path:match("^assets/([^/]+)$")
+	if serviceName then
+		return serviceName
+	end
+	return "Folder"
+end
+
+local function classNameFromAsset(asset: AssetDefinition.AssetDefinition): string
+	if asset.className ~= "rbxm" and asset.className ~= "rbxmx" and asset.className ~= "" then
+		return asset.className
+	end
+
+	local rootName = displayPath(asset):match("^assets/([^/]+)/")
+	if rootName == "StarterGui" then
+		return "ScreenGui"
+	elseif rootName == "StarterPack" then
+		return "Tool"
+	elseif rootName == "MaterialService" then
+		return "MaterialVariant"
+	elseif rootName == "SoundService" then
+		return "Sound"
+	elseif rootName == "Lighting" then
+		return "Sky"
+	end
+
+	return "Model"
+end
+
+local function applyClassIcon(icon: ImageLabel, className: string)
+	local ok, iconInfo = pcall(function()
+		return StudioService:GetClassIcon(className)
+	end)
+	if not ok or typeof(iconInfo) ~= "table" then
+		icon.Visible = false
+		return
+	end
+
+	local info = iconInfo :: any
+	if typeof(info.Image) ~= "string" or info.Image == "" then
+		icon.Visible = false
+		return
+	end
+
+	icon.Image = info.Image
+	icon.ImageRectOffset = info.ImageRectOffset or Vector2.zero
+	icon.ImageRectSize = info.ImageRectSize or Vector2.zero
+	icon.Visible = true
+end
+
+local function createClassIcon(className: string, parent: Instance): ImageLabel
+	local icon = Instance.new("ImageLabel")
+	icon.Name = "ClassIcon"
+	icon.Size = UDim2.new(0, 16, 0, 16)
+	icon.BackgroundTransparency = 1
+	icon.ScaleType = Enum.ScaleType.Fit
+	icon.Parent = parent
+	applyClassIcon(icon, className)
+	return icon
 end
 
 type TreeNode = {
@@ -124,9 +191,9 @@ local function statusBadgeText(status: AssetDefinition.AssetStatus): string
 	elseif status == "Changed" then
 		return "CHANGED"
 	elseif status == "Error" then
-		return "ERROR"
+		return "ISSUE"
 	elseif status == "Warning" then
-		return "WARN"
+		return "CHECK"
 	end
 	return "CLEAN"
 end
@@ -190,6 +257,10 @@ function AssetList.create(emptyMessage: string?): Handle
 		header.Text = ""
 		header.Parent = root
 
+		local headerCorner = Instance.new("UICorner")
+		headerCorner.CornerRadius = UDim.new(0, 8)
+		headerCorner.Parent = header
+
 		local indent = math.min(depth, 7) * 16
 
 		local stripe = Instance.new("Frame")
@@ -200,7 +271,7 @@ function AssetList.create(emptyMessage: string?): Handle
 		stripe.Parent = header
 
 		local checkbox = Checkbox.create(allSelected(nodeAssets))
-		checkbox.root.Position = UDim2.new(0, 10 + indent, 0.5, -9)
+		checkbox.root.Position = UDim2.new(0, 10 + indent, 0.5, -8)
 		checkbox.root.Parent = header
 		checkbox.onChanged:Connect(function(checked: boolean)
 			for _, asset in selectableAssets(nodeAssets) do
@@ -221,16 +292,19 @@ function AssetList.create(emptyMessage: string?): Handle
 		arrow.Font = Enum.Font.SourceSansSemibold
 		arrow.Parent = header
 
+		local icon = createClassIcon(classNameFromFolderPath(path), header)
+		icon.Position = UDim2.new(0, 50 + indent, 0.5, -8)
+
 		local label = Instance.new("TextLabel")
 		label.Name = "FolderName"
-		label.Position = UDim2.new(0, 50 + indent, 0, 0)
-		label.Size = UDim2.new(1, -136 - indent, 1, 0)
+		label.Position = UDim2.new(0, 72 + indent, 0, 0)
+		label.Size = UDim2.new(1, -140 - indent, 1, 0)
 		label.BackgroundTransparency = 1
 		label.Text = name
 		header.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Color3.fromRGB(55, 55, 55)
-		label.TextSize = 13
+		label.TextColor3 = Color3.fromRGB(35, 35, 35)
+		label.TextSize = PRIMARY_TEXT_SIZE
 		label.Font = Enum.Font.SourceSansSemibold
 		label.TextTruncate = Enum.TextTruncate.AtEnd
 		label.Parent = header
@@ -239,14 +313,18 @@ function AssetList.create(emptyMessage: string?): Handle
 		badge.Name = "StatusBadge"
 		badge.AnchorPoint = Vector2.new(1, 0.5)
 		badge.Position = UDim2.new(1, -8, 0.5, 0)
-		badge.Size = UDim2.new(0, 74, 0, 18)
+		badge.Size = UDim2.new(0, 56, 0, 16)
 		badge.BackgroundColor3 = statusColor(folderStatus)
 		badge.BorderSizePixel = 0
 		badge.Text = statusBadgeText(folderStatus)
 		badge.TextColor3 = Color3.fromRGB(255, 255, 255)
-		badge.TextSize = 11
+		badge.TextSize = BADGE_TEXT_SIZE
 		badge.Font = Enum.Font.SourceSansBold
 		badge.Parent = header
+
+		local badgeCorner = Instance.new("UICorner")
+		badgeCorner.CornerRadius = UDim.new(0, 8)
+		badgeCorner.Parent = badge
 
 		header.MouseButton1Click:Connect(function()
 			collapsed[path] = not collapsed[path]
@@ -274,12 +352,12 @@ function AssetList.create(emptyMessage: string?): Handle
 		stripe.Parent = row
 
 		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 4)
+		corner.CornerRadius = UDim.new(0, 8)
 		corner.Parent = row
 
 		local checkbox = Checkbox.create(asset.selected)
 		local indent = math.min(depth, 5) * 14
-		checkbox.root.Position = UDim2.new(0, 10 + indent, 0, 13)
+		checkbox.root.Position = UDim2.new(0, 10 + indent, 0, 14)
 		checkbox.root.Parent = row
 		checkbox.onChanged:Connect(function(checked: boolean)
 			asset.selected = checked
@@ -292,53 +370,60 @@ function AssetList.create(emptyMessage: string?): Handle
 			render()
 		end)
 
+		local icon = createClassIcon(classNameFromAsset(asset), row)
+		icon.Position = UDim2.new(0, 38 + indent, 0, 7)
+
 		local title = Instance.new("TextLabel")
 		title.Name = "Title"
-		title.Position = UDim2.new(0, 42 + indent, 0, 5)
-		title.Size = UDim2.new(1, -132 - indent, 0, 20)
+		title.Position = UDim2.new(0, 60 + indent, 0, 5)
+		title.Size = UDim2.new(1, -128 - indent, 0, 20)
 		title.BackgroundTransparency = 1
 		title.Text = asset.name
 		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.TextColor3 = statusColor(asset.status)
-		title.TextSize = 16
+		title.TextColor3 = Color3.fromRGB(35, 35, 35)
+		title.TextSize = PRIMARY_TEXT_SIZE
 		title.Font = Enum.Font.SourceSansSemibold
 		title.TextTruncate = Enum.TextTruncate.AtEnd
 		title.Parent = row
 
 		local className = Instance.new("TextLabel")
 		className.Name = "ClassName"
-		className.Position = UDim2.new(1, -166, 0, 5)
-		className.Size = UDim2.new(0, 76, 0, 20)
+		className.Position = UDim2.new(1, -132, 0, 5)
+		className.Size = UDim2.new(0, 58, 0, 20)
 		className.BackgroundTransparency = 1
 		className.Text = asset.className
 		className.TextXAlignment = Enum.TextXAlignment.Right
-		className.TextColor3 = statusColor(asset.status)
-		className.TextSize = 14
+		className.TextColor3 = Color3.fromRGB(85, 85, 85)
+		className.TextSize = SECONDARY_TEXT_SIZE
 		className.Font = Enum.Font.SourceSans
 		className.TextTruncate = Enum.TextTruncate.AtEnd
 		className.Parent = row
 
 		local badge = Instance.new("TextLabel")
 		badge.Name = "StatusBadge"
-		badge.Position = UDim2.new(1, -86, 0, 6)
-		badge.Size = UDim2.new(0, 76, 0, 18)
+		badge.Position = UDim2.new(1, -66, 0, 7)
+		badge.Size = UDim2.new(0, 56, 0, 16)
 		badge.BackgroundColor3 = statusColor(asset.status)
 		badge.BorderSizePixel = 0
 		badge.Text = statusBadgeText(asset.status)
 		badge.TextColor3 = Color3.fromRGB(255, 255, 255)
-		badge.TextSize = 11
+		badge.TextSize = BADGE_TEXT_SIZE
 		badge.Font = Enum.Font.SourceSansBold
 		badge.Parent = row
 
+		local badgeCorner = Instance.new("UICorner")
+		badgeCorner.CornerRadius = UDim.new(0, 8)
+		badgeCorner.Parent = badge
+
 		local path = Instance.new("TextLabel")
 		path.Name = "Path"
-		path.Position = UDim2.new(0, 42 + indent, 0, 25)
-		path.Size = UDim2.new(1, -52 - indent, 0, 18)
+		path.Position = UDim2.new(0, 60 + indent, 0, 25)
+		path.Size = UDim2.new(1, -70 - indent, 0, 18)
 		path.BackgroundTransparency = 1
 		path.Text = secondaryText(asset)
 		path.TextXAlignment = Enum.TextXAlignment.Left
-		path.TextColor3 = statusColor(asset.status)
-		path.TextSize = 13
+		path.TextColor3 = Color3.fromRGB(95, 95, 95)
+		path.TextSize = SECONDARY_TEXT_SIZE
 		path.Font = Enum.Font.SourceSans
 		path.TextTruncate = Enum.TextTruncate.AtEnd
 		path.Parent = row

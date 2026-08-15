@@ -55,18 +55,17 @@ fn run() -> Result<()> {
 }
 
 fn print_usage() {
-    println!("Refab {CLI_VERSION}");
-    println!("Asset workflow helper for Roblox projects");
+    println!("Refab asset workflow CLI for Roblox projects");
     println!();
     println!("Usage: refab [OPTIONS] [COMMAND]");
     println!();
     println!("Commands:");
-    println!("  run      Starts the local helper server");
-    println!("  stop     Stops the local helper server");
-    println!("  status   Prints helper project status as JSON");
-    println!("  scan     Lists local assets as JSON");
+    println!("  run      Starts local asset sync");
+    println!("  stop     Stops local asset sync");
+    println!("  status   Prints project status as JSON");
+    println!("  scan     Lists local asset files as JSON");
     println!("  version  Prints the Refab CLI version");
-    println!("  help     Prints this message");
+    println!("  help     Print this message or the help of the given command(s)");
     println!();
     println!("Options:");
     println!("  -h, --help     Print help");
@@ -76,7 +75,7 @@ fn print_usage() {
 fn stop_helper() -> Result<()> {
     let port = helper_port();
     let mut stream = TcpStream::connect(("127.0.0.1", port))
-        .map_err(|_| anyhow!("Refab helper is not running on 127.0.0.1:{port}"))?;
+        .map_err(|_| anyhow!("Refab is not running on 127.0.0.1:{port}"))?;
     stream.write_all(
         b"POST /shutdown HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
     )?;
@@ -84,10 +83,10 @@ fn stop_helper() -> Result<()> {
     let mut response = String::new();
     stream.read_to_string(&mut response)?;
     if response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200") {
-        println!("Refab helper stopped");
+        println!("Refab stopped");
         Ok(())
     } else {
-        Err(anyhow!("Refab helper refused to stop"))
+        Err(anyhow!("Refab refused to stop"))
     }
 }
 
