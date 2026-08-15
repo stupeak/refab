@@ -2,7 +2,7 @@
 
 local Settings = {
 	PluginName = "Refab",
-	PluginVersion = "1.1.1",
+	PluginVersion = "1.1.2",
 	ToolbarName = "Refab",
 	ButtonText = "Refab",
 	ButtonTooltip = "Open Refab asset packaging tools",
@@ -14,6 +14,7 @@ local Settings = {
 		AssetId = "RefabAssetId",
 		SourcePath = "RefabSourcePath",
 		TargetPath = "RefabTargetPath",
+		LocalHash = "RefabLocalHash",
 		Version = "RefabVersion",
 	},
 	SupportedRoots = {

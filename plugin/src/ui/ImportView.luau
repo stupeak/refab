@@ -173,7 +173,7 @@ function ImportView.create(importService: any, setStatus: (string, boolean?) -> 
 	local function applySelected()
 		local result = importService:importSelectedFromHelper(assets)
 		setStatus(result.message, not result.ok)
-		if result.ok then
+		if result.ok or result.count > 0 then
 			refreshHelper()
 		end
 	end

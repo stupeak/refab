@@ -39,10 +39,13 @@ function AssetRegistry.ensureAssetId(instance: Instance): string
 	return id
 end
 
-function AssetRegistry.register(instance: Instance, sourcePath: string, targetPath: string): string
+function AssetRegistry.register(instance: Instance, sourcePath: string, targetPath: string, localHash: string?): string
 	local id = AssetRegistry.ensureAssetId(instance)
 	instance:SetAttribute(Settings.Attributes.SourcePath, sourcePath)
 	instance:SetAttribute(Settings.Attributes.TargetPath, targetPath)
+	if localHash and localHash ~= "" then
+		instance:SetAttribute(Settings.Attributes.LocalHash, localHash)
+	end
 	local version = instance:GetAttribute(Settings.Attributes.Version)
 	if typeof(version) ~= "number" then
 		instance:SetAttribute(Settings.Attributes.Version, 1)
@@ -58,6 +61,21 @@ function AssetRegistry.getSourcePath(instance: Instance): string?
 		return value
 	end
 	return nil
+end
+
+function AssetRegistry.getLocalHash(instance: Instance): string?
+	local value = instance:GetAttribute(Settings.Attributes.LocalHash)
+	if typeof(value) == "string" and value ~= "" then
+		return value
+	end
+	return nil
+end
+
+function AssetRegistry.hasAppliedLocalHash(instance: Instance, sourcePath: string, localHash: string?): boolean
+	if not localHash or localHash == "" then
+		return false
+	end
+	return AssetRegistry.getSourcePath(instance) == sourcePath and AssetRegistry.getLocalHash(instance) == localHash
 end
 
 return AssetRegistry

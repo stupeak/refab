@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.2
+
+- Fixed `To Roblox` showing already-applied local assets as changed after
+  applying them to the place.
+- Refab now records the applied local file hash on the target Instance so the
+  asset tree can avoid false changed states caused by plugin metadata.
+
 ## v1.1.1
 
 - Added `refab install-plugin` to install or update `Refab.rbxm` in the local

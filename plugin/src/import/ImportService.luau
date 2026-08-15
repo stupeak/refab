@@ -35,7 +35,7 @@ local function helperStatusToAssetStatus(status: string?): AssetDefinition.Asset
 end
 
 local function stripExtension(name: string): string
-	return (name:gsub("%.rbxm$", ""):gsub("%.rbxmx$", ""))
+	return (name:gsub("%.[rR][bB][xX][mM]$", ""):gsub("%.[rR][bB][xX][mM][xX]$", ""))
 end
 
 local function splitAssetPath(assetPath: string): {string}
@@ -69,9 +69,63 @@ local function findExistingTarget(assetPath: string): Instance?
 	return current:FindFirstChild(stripExtension(parts[#parts]))
 end
 
-local function compareLocalAssetToRoblox(helperClient: any, source: string, existingTarget: Instance?): (AssetDefinition.AssetStatus, string?)
+local function beginRecording(): any?
+	local ok, recording = pcall(function()
+		return ChangeHistoryService:TryBeginRecording("Refab Apply", "Apply Refab assets")
+	end)
+	if ok then
+		return recording
+	end
+	return nil
+end
+
+local function finishRecording(recording: any?, operation: Enum.FinishRecordingOperation)
+	if not recording then
+		return
+	end
+
+	pcall(function()
+		ChangeHistoryService:FinishRecording(recording, operation)
+	end)
+end
+
+local function fail(recording: any?, message: string, imported: number): ImportResult
+	finishRecording(recording, Enum.FinishRecordingOperation.Cancel)
+	return {
+		ok = false,
+		message = message,
+		count = imported,
+	}
+end
+
+local function appendFailure(failures: {string}, assetPath: string, message: string)
+	table.insert(failures, assetPath .. ": " .. message)
+end
+
+local function summarizeFailures(failures: {string}, imported: number): string
+	local preview = {}
+	for index, message in failures do
+		if index > 3 then
+			table.insert(preview, "and " .. tostring(#failures - 3) .. " more")
+			break
+		end
+		table.insert(preview, message)
+	end
+
+	local prefix = if imported > 0
+		then "Applied " .. tostring(imported) .. " asset(s), but some assets could not be applied."
+		else "No assets were applied."
+
+	return prefix .. "\n\n" .. table.concat(preview, "\n")
+end
+
+local function compareLocalAssetToRoblox(helperClient: any, source: string, localHash: string?, existingTarget: Instance?): (AssetDefinition.AssetStatus, string?)
 	if not existingTarget then
 		return "New", nil
+	end
+
+	if AssetRegistry.hasAppliedLocalHash(existingTarget, source, localHash) then
+		return "Ready", "sha256 " .. string.sub(localHash :: string, 1, 12)
 	end
 
 	local serializeOk, serializedOrError = pcall(function()
@@ -128,7 +182,7 @@ function ImportService:listHelperAssets(): ({AssetDefinition.AssetDefinition}, s
 		end
 
 		local existingTarget = findExistingTarget(source)
-		local status, compareMessage = compareLocalAssetToRoblox(self._helperClient, source, existingTarget)
+		local status, compareMessage = compareLocalAssetToRoblox(self._helperClient, source, helperAsset.hash, existingTarget)
 		if status == "Ready" then
 			continue
 		end
@@ -174,20 +228,15 @@ function ImportService:importSelectedFromHelper(assets: {AssetDefinition.AssetDe
 		}
 	end
 
-	local recording = ChangeHistoryService:TryBeginRecording("Refab Import", "Import Refab helper assets")
+	local recording = beginRecording()
 	local imported = 0
+	local failures = {}
 
 	for _, asset in selectedAssets do
 		local readOk, dataBase64, helperAsset, readMessage = self._helperClient:readAsset(asset.assetPath)
 		if not readOk or not dataBase64 then
-			if recording then
-				ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Cancel)
-			end
-			return {
-				ok = false,
-				message = readMessage or ("Failed to read " .. asset.assetPath .. " from helper."),
-				count = imported,
-			}
+			appendFailure(failures, asset.assetPath, readMessage or "Failed to read file from Refab CLI.")
+			continue
 		end
 
 		local binary = Base64.decode(dataBase64)
@@ -197,50 +246,78 @@ function ImportService:importSelectedFromHelper(assets: {AssetDefinition.AssetDe
 		end)
 
 		if not deserializeOk or typeof(deserializedOrError) ~= "table" then
-			if recording then
-				ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Cancel)
-			end
-			return {
-				ok = false,
-				message = "Failed to deserialize " .. asset.assetPath .. ": " .. tostring(deserializedOrError),
-				count = imported,
-			}
+			appendFailure(failures, asset.assetPath, "Failed to deserialize: " .. tostring(deserializedOrError))
+			continue
 		end
 
 		local okParent, parent, parentMessage = AssetPathResolver.assetPathToParent(asset.assetPath)
 		if not okParent or not parent then
-			if recording then
-				ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Cancel)
-			end
-			return {
-				ok = false,
-				message = parentMessage or ("Failed to resolve parent for " .. asset.assetPath),
-				count = imported,
-			}
+			appendFailure(failures, asset.assetPath, parentMessage or "Failed to resolve parent.")
+			continue
+		end
+
+		local okName, targetName, nameMessage = AssetPathResolver.assetPathToName(asset.assetPath)
+		if not okName or not targetName then
+			appendFailure(failures, asset.assetPath, nameMessage or "Failed to resolve asset name.")
+			continue
 		end
 
 		local deserialized = deserializedOrError :: {Instance}
-		for _, instance in deserialized do
-			local existing = parent:FindFirstChild(instance.Name)
+		if #deserialized == 0 then
+			appendFailure(failures, asset.assetPath, "No Instances were found inside this file.")
+			continue
+		end
+
+		local targetInstance: Instance
+		if #deserialized == 1 then
+			targetInstance = deserialized[1]
+			targetInstance.Name = targetName
+		else
+			local folder = Instance.new("Folder")
+			folder.Name = targetName
+			for _, instance in deserialized do
+				instance.Parent = folder
+			end
+			targetInstance = folder
+		end
+
+		local applyOk, applyError = pcall(function()
+			local existing = parent:FindFirstChild(targetName)
 			if existing then
 				existing:Destroy()
 			end
-			instance.Parent = parent
+			targetInstance.Parent = parent
 			if helperAsset and helperAsset.id then
 				local targetPath = helperAsset.target or ""
-				AssetRegistry.register(instance, asset.assetPath, targetPath)
+				AssetRegistry.register(targetInstance, asset.assetPath, targetPath, helperAsset.hash)
 			end
-			imported += 1
+		end)
+
+		if not applyOk then
+			appendFailure(failures, asset.assetPath, "Failed to apply: " .. tostring(applyError))
+			continue
 		end
+
+		imported += 1
 	end
 
-	if recording then
-		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+	if imported > 0 then
+		finishRecording(recording, Enum.FinishRecordingOperation.Commit)
+	else
+		finishRecording(recording, Enum.FinishRecordingOperation.Cancel)
+	end
+
+	if #failures > 0 then
+		return {
+			ok = false,
+			message = summarizeFailures(failures, imported),
+			count = imported,
+		}
 	end
 
 	return {
 		ok = true,
-		message = "Applied " .. tostring(imported) .. " local asset instance(s) to the place.",
+		message = "Applied " .. tostring(imported) .. " local asset(s) to the place.",
 		count = imported,
 	}
 end

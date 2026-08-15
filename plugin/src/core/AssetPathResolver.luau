@@ -15,7 +15,7 @@ local function sanitizeSegment(segment: string): string
 end
 
 local function stripExtension(name: string): string
-	return (name:gsub("%.rbxm$", ""):gsub("%.rbxmx$", ""))
+	return (name:gsub("%.[rR][bB][xX][mM]$", ""):gsub("%.[rR][bB][xX][mM][xX]$", ""))
 end
 
 function AssetPathResolver.getSupportedRoot(instance: Instance): Instance?
@@ -120,6 +120,17 @@ function AssetPathResolver.assetPathToParent(assetPath: string): (boolean, Insta
 	end
 
 	return true, parent, nil
+end
+
+function AssetPathResolver.assetPathToName(assetPath: string): (boolean, string?, string?)
+	local normalized = assetPath:gsub("\\", "/")
+	normalized = normalized:gsub("^" .. Settings.AssetsRootFolder .. "/", "")
+	local fileName = normalized:match("([^/]+)$")
+	if not fileName then
+		return false, nil, "Asset path must include a file name."
+	end
+
+	return true, stripExtension(fileName), nil
 end
 
 function AssetPathResolver.fileNameToParentPath(fileName: string): string

@@ -24,8 +24,8 @@ Create and push a semantic version tag:
 ```powershell
 git checkout main
 git pull
-git tag v1.1.1
-git push origin v1.1.1
+git tag v1.1.2
+git push origin v1.1.2
 ```
 
 GitHub Actions then runs:
@@ -49,7 +49,7 @@ Release notes can be written before tagging:
 
 ```text
 .release-notes/
-  v1.1.1.md
+  v1.1.2.md
 ```
 
 When `.release-notes/<tag>.md` exists, the release workflow uses it as the
@@ -80,8 +80,8 @@ To test the release workflow without using a final version, push a prerelease ta
 and delete it after testing:
 
 ```powershell
-git tag v1.1.1-test.1
-git push origin v1.1.1-test.1
+git tag v1.1.2-test.1
+git push origin v1.1.2-test.1
 ```
 
 This still creates a real GitHub Release because it matches `v*`, so use it only

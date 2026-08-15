@@ -159,7 +159,7 @@ Add Refab to `rokit.toml`:
 
 ```toml
 [tools]
-refab = "stupeak/refab@1.1.1"
+refab = "stupeak/refab@1.1.2"
 ```
 
 Then install it:
